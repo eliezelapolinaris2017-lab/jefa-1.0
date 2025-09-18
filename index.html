@@ -697,8 +697,11 @@ function renderEmpleadosSelects(){
   targets.forEach(id=>{
     const el=byId(id); if(!el) return;
     el.innerHTML = `<option value="">${id==='a_emp'||id==='f_emp'?'Seleccione':''}</option>` +
-      emps.filter(e=>+e.activo===1).map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');
-  });
+  emps
+  .filter(e => (e.activo === undefined ? true : +e.activo === 1))
+  .map(e => `<option value="${e.id}">${e.nombre || e.name || '(sin nombre)'}</option>`)
+  .join('');
+     
   // para campos que no deben tener "Todos"
   if(byId('a_emp') && emps.length) byId('a_emp').value = emps[0].id;
   if(byId('f_emp') && emps.length) byId('f_emp').value = emps[0].id;
