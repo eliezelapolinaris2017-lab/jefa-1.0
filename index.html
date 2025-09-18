@@ -575,6 +575,14 @@ const download = (filename, content, type='text/plain')=>{
   a.href=URL.createObjectURL(new Blob([content],{type}));
   a.download=filename; a.click(); URL.revokeObjectURL(a.href);
 };
+   function normalizePhone(raw){
+  if(!raw) return '';
+  const digits = String(raw).replace(/\D+/g,'');   // quita espacios, -, (), etc.
+  // Puerto Rico (NANP). Si trae 10 dígitos, antepone el 1; si trae 11 y empieza en 1, lo deja.
+  if(digits.length===10) return '1'+digits;
+  if(digits.length===11 && digits.startsWith('1')) return digits;
+  return digits; // último recurso: devuelve lo que haya
+}
 
 /* ============================================================
    ESTADO INICIAL / DEMO USERS
@@ -818,18 +826,30 @@ function citaBorrar(id){
 function citaWhatsApp(id){
   const cfg=load(K.CFG,{});
   const c=load(K.CITAS,[]).find(x=>x.id===id); if(!c) return;
-  const emps=load(K.EMP,[]); const empName=(emps.find(e=>e.id===c.emp)||{}).nombre||'';
-  const fechaTxt=new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
-  const msg = encodeURIComponent(
-    `Hola ${c.nombre}, confirmación de su cita:\n`+
-    `🗓 ${fechaTxt}\n👤 Técnica: ${empName}\n💈 Servicio: ${c.srv||'-'}\n`+
-    `${c.notas? '📝 Notas: '+c.notas+'\n':''}`+
-    `${cfg.maps? '📍 Ubicación: '+cfg.maps+'\n':''}`+
+
+  const emps=load(K.EMP,[]);
+  const empName=(emps.find(e=>e.id===c.emp)||{}).nombre||'';
+
+  const fechaTxt = new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
+
+  const mensaje = [
+    `Hola ${c.nombre}, confirmación de su cita:`,
+    `🗓 ${fechaTxt}`,
+    `👤 Técnica: ${empName}`,
+    `💈 Servicio: ${c.srv||'-'}`,
+    c.notas ? `📝 Notas: ${c.notas}` : '',
+    cfg.maps ? `📍 Ubicación: ${cfg.maps}` : '',
     `Responda este mensaje para confirmar. ¡Gracias!`
-  );
-  const phone = cfg.waPhone?.replace(/\D/g,'')||'';
-  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+  ].filter(Boolean).join('\n');
+
+  // 🔑 AHORA usa el teléfono que se ingresó en la cita; si no hay, cae al de Configuración.
+  const phone = normalizePhone(c.tel) || normalizePhone(cfg.waPhone || '');
+  if(!phone){ alert('No hay teléfono válido en la cita ni en Configuración.'); return; }
+
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url,'_blank');
 }
+
 
 /* ============================================================
    FACTURACIÓN (líneas, totales, exportar, WhatsApp)
