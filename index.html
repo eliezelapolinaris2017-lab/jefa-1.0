@@ -848,7 +848,7 @@ function citaWhatsApp(id){
   const phone = normalizePhone(c.tel, cfg.waPhone);
   window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
 }
-  /* ============================================================
+/* ============================================================
    FACTURACIÓN (líneas, totales, exportar, WhatsApp)
    ============================================================ */
 function nextFacturaNumber(){
@@ -866,6 +866,153 @@ function lineaTpl(id,data={}){
     </div>
   </div>`;
 }
+function recalcFactura(){
+  const rows=[...$$('#lineas [data-k="cant"]')].map(el=>{
+    const id=el.dataset.id;
+    const cant=+el.value||0;
+    const precio=+byId(`lineas`).querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
+    const tot=cant*precio;
+    byId('lineas').querySelector(`[data-id="${id}"][data-k="total"]`).value=fmtMoney(tot);
+    return tot;
+  });
+  const sub = rows.reduce((a,b)=>a+b,0);
+  const ivu = sub*(+byId('f_ivu').value/100);
+  const tot = sub+ivu;
+  byId('f_sub').value=fmtMoney(sub);
+  byId('f_tax').value=fmtMoney(ivu);
+  byId('f_total').value=fmtMoney(tot);
+  byId('ath_monto').value=fmtMoney(tot);
+}
+function lineaAdd(data={}){
+  const id=uuid();
+  byId('lineas').insertAdjacentHTML('beforeend', lineaTpl(id,data));
+  ['cant','precio'].forEach(k=>{
+    byId('lineas').querySelector(`[data-id="${id}"][data-k="${k}"]`).addEventListener('input', recalcFactura);
+  });
+  recalcFactura();
+}
+function lineaDel(id){
+  const node=[...byId('lineas').children].find(div=>div.querySelector(`[data-id="${id}"]`));
+  if(node) node.remove(); recalcFactura();
+}
+function facturaNueva(){
+  byId('f_num').value = nextFacturaNumber();
+  byId('f_cli').value='';
+  byId('f_tel').value='';
+  const emps=load(K.EMP,[]);
+  const firstActivo = emps.find(e => (e.activo === undefined ? true : +e.activo === 1));
+  if(byId('ff_emp')) byId('ff_emp').value = (firstActivo||{}).id || '';
+  byId('f_fecha').value = todayISO();
+  byId('f_notas').value='';
+  byId('f_pago').value='ATH Móvil';
+  byId('lineas').innerHTML='';
+  recalcFactura();
+}
+function facturaGuardar(){
+  const num=byId('f_num').value || nextFacturaNumber();
+  const cli=byId('f_cli').value.trim();
+  const tel=byId('f_tel').value.trim();
+  const emp=byId('ff_emp').value;  // 🔧 lee de ff_emp
+  const fecha=byId('f_fecha').value;
+  const pago=byId('f_pago').value;
+  const ivu=+byId('f_ivu').value;
+  const notas=byId('f_notas').value.trim();
+  const items=[...$$('#lineas [data-k="desc"]')].map(el=>{
+    const id=el.dataset.id;
+    const cant=+byId('lineas').querySelector(`[data-id="${id}"][data-k="cant"]`).value||0;
+    const precio=+byId('lineas').querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
+    return {desc:el.value, cant, precio};
+  });
+  if(!cli || !fecha || items.length===0) return alert('Cliente, fecha y al menos una línea.');
+  const sub=items.reduce((a,i)=>a+i.cant*i.precio,0), tax=sub*(ivu/100), tot=sub+tax;
+  let facts=load(K.FACTS,[]);
+  const exists=facts.find(x=>x.num==num);
+  const data={id:exists?.id||uuid(), num, cli, tel, emp, fecha, pago, ivu, notas, items, sub, tax, tot};
+  if(exists){ facts = facts.map(x=> x.num==num? data : x); } else { facts.push(data); }
+  save(K.FACTS,facts);
+  renderFacturas();
+  alert('Factura guardada.');
+}
+function renderFacturas(){
+  const tb=byId('tblFacturas').querySelector('tbody');
+  let facts=load(K.FACTS,[]);
+  const d=byId('h_desde').value, h=byId('h_hasta').value, e=byId('h_emp').value;
+  if(d) facts=facts.filter(f=>f.fecha>=d);
+  if(h) facts=facts.filter(f=>f.fecha<=h);
+  if(e) facts=facts.filter(f=>f.emp===e);
+  facts.sort((a,b)=> (b.fecha+a.num).localeCompare(a.fecha+b.num));
+  const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
+  tb.innerHTML=facts.map(f=>`
+    <tr class="tr">
+      <td>${f.num}</td><td>${f.fecha}</td><td>${f.cli}</td><td>${empName(f.emp)}</td>
+      <td>${f.pago}</td><td>${fmtMoney(f.tot)}</td>
+      <td class="no-print">
+        <button class="btn-ghost" onclick="factImprimir(${f.num})">PDF</button>
+        <button class="btn-ghost" onclick="factCSV(${f.num})">CSV</button>
+        <button class="btn-ghost" onclick="factWA(${f.num})">WA</button>
+        <button class="btn-danger" onclick="factDel(${f.num})">X</button>
+      </td>
+    </tr>`).join('');
+}
+function factData(num){ return load(K.FACTS,[]).find(f=>f.num==num); }
+function factDel(num){ save(K.FACTS, load(K.FACTS,[]).filter(f=>f.num!=num)); renderFacturas(); }
+function factWA(num){
+  const cfg=load(K.CFG,{});
+  const f=factData(num); if(!f) return;
+
+  // 🟢 Enviar al número del cliente si existe; si no, usa el configurado
+  const phone = (f.tel || cfg.waPhone || '').replace(/\D/g,'');
+
+  const msg = encodeURIComponent(
+    `${cfg.waFacto||'Gracias por su compra.'}\n`+
+    `Factura #${f.num}\nFecha: ${f.fecha}\nTotal: ${fmtMoney(f.tot)}\n`+
+    `${cfg.maps? 'Ubicación: '+cfg.maps+'\n':''}`+
+    `Detalle:\n`+f.items.map(i=>`• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`).join('\n')
+  );
+  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+}
+function factCSV(num){
+  const f=factData(num); if(!f) return;
+  let csv='Descripcion,Cantidad,Precio,Total\n';
+  f.items.forEach(i=> csv+=`${i.desc},${i.cant},${i.precio},${(i.cant*i.precio).toFixed(2)}\n`);
+  csv+=`\nSubtotal,, ,${f.sub.toFixed(2)}\nIVU (${f.ivu}%),, ,${f.tax.toFixed(2)}\nTotal,, ,${f.tot.toFixed(2)}\n`;
+  download(`Factura_${f.num}.csv`, csv, 'text/csv');
+}
+function factImprimir(num){
+  const f=factData(num); if(!f) return;
+  const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
+  const cfg=load(K.CFG,{});
+  const html=`
+  <html><head><meta charset="utf-8"><title>Factura ${f.num}</title>
+  <style>
+    body{font-family:${getComputedStyle(document.documentElement).getPropertyValue('--font')}; padding:20px}
+    h1,h2,h3{margin:0}
+    table{width:100%; border-collapse:collapse; margin-top:10px}
+    th,td{border:1px solid #ddd; padding:8px}
+    .right{text-align:right}
+  </style></head><body>
+  <h2>${cfg.name||'Salon Pro'}</h2>
+  <div>${cfg.sub||''}</div>
+  <hr>
+  <h3>Factura #${f.num}</h3>
+  <div>Fecha: ${f.fecha}</div>
+  <div>Cliente: ${f.cli}</div>
+  <div>Tel: ${f.tel||''}</div>
+  <div>Empleado: ${empName(f.emp)}</div>
+  <table>
+    <thead><tr><th>Descripción</th><th>Cant</th><th>Precio</th><th>Total</th></tr></thead>
+    <tbody>
+      ${f.items.map(i=>`<tr><td>${i.desc}</td><td class="right">${i.cant}</td><td class="right">${i.precio.toFixed(2)}</td><td class="right">${(i.cant*i.precio).toFixed(2)}</td></tr>`).join('')}
+    </tbody>
+  </table>
+  <h3 class="right">Subtotal: ${f.sub.toFixed(2)}</h3>
+  <h3 class="right">IVU (${f.ivu}%): ${f.tax.toFixed(2)}</h3>
+  <h2 class="right">Total: ${f.tot.toFixed(2)}</h2>
+  <p>${cfg.waFacto||''}</p>
+  </body></html>`;
+  const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+}
+
 function recalcFactura(){
   const rows=[...$$('#lineas [data-k="cant"]')].map(el=>{
     const id=el.dataset.id;
