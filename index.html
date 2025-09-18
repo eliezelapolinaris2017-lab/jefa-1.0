@@ -300,7 +300,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <div><label>Método de pago</label>
           <select id="f_pago" class="input"><option>ATH Móvil</option><option>Tarjeta</option><option>Cash</option></select>
         </div>
-        <div><label>IVU %</label><input id="f_ivu" type="number" class="input" value="0" step=".1" min="0"></div>
+        <div><label>IVU %</label><input id="f_ivu" type="number" class="input" value="11.5" step=".1" min="0"></div>
         <div><label>Notas</label><input id="f_notas" class="input" placeholder="Opcional"></div>
       </div>
       <div class="row" style="margin-top:.6rem">
@@ -516,12 +516,12 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       <div class="row cols-2">
         <div>
           <label>URL de Google Form (respuesta)</label>
-          <input id="cfg_form_url" class="input" placeholder="https://docs.google.com/forms/d/e/1FAIpQLSf1UXh09WVyDvNF0tvzPEUQGsArmm81Ice53xoWgzpY-8Ae8g/viewform?usp=pp_url">
+          <input id="cfg_form_url" class="input" placeholder="https://docs.google.com/forms/d/e/.../formResponse">
           <p class="help">Se usa para enviar citas por POST. Debe apuntar a <code>.../formResponse</code>.</p>
         </div>
         <div>
           <label>URL Web App Apps Script (opcional)</label>
-          <input id="cfg_script_url" class="input" placeholder="https://script.google.com/macros/s/AKfycbyxxwFwQAift-E0UcKhwLB0nXHye048kOqKFDcA8AK696T9rZf1PhP3elL58BM7ePo/exec">
+          <input id="cfg_script_url" class="input" placeholder="https://script.google.com/macros/s/.../exec">
           <p class="help">Para guardar/leer datos desde Google Sheets (como base de datos).</p>
         </div>
       </div>
@@ -575,14 +575,6 @@ const download = (filename, content, type='text/plain')=>{
   a.href=URL.createObjectURL(new Blob([content],{type}));
   a.download=filename; a.click(); URL.revokeObjectURL(a.href);
 };
-   function normalizePhone(raw){
-  if(!raw) return '';
-  const digits = String(raw).replace(/\D+/g,'');   // quita espacios, -, (), etc.
-  // Puerto Rico (NANP). Si trae 10 dígitos, antepone el 1; si trae 11 y empieza en 1, lo deja.
-  if(digits.length===10) return '1'+digits;
-  if(digits.length===11 && digits.startsWith('1')) return digits;
-  return digits; // último recurso: devuelve lo que haya
-}
 
 /* ============================================================
    ESTADO INICIAL / DEMO USERS
@@ -697,11 +689,8 @@ function renderEmpleadosSelects(){
   targets.forEach(id=>{
     const el=byId(id); if(!el) return;
     el.innerHTML = `<option value="">${id==='a_emp'||id==='f_emp'?'Seleccione':''}</option>` +
-  emps
-  .filter(e => (e.activo === undefined ? true : +e.activo === 1))
-  .map(e => `<option value="${e.id}">${e.nombre || e.name || '(sin nombre)'}</option>`)
-  .join('');
-     
+      emps.filter(e=>+e.activo===1).map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');
+  });
   // para campos que no deben tener "Todos"
   if(byId('a_emp') && emps.length) byId('a_emp').value = emps[0].id;
   if(byId('f_emp') && emps.length) byId('f_emp').value = emps[0].id;
@@ -829,30 +818,18 @@ function citaBorrar(id){
 function citaWhatsApp(id){
   const cfg=load(K.CFG,{});
   const c=load(K.CITAS,[]).find(x=>x.id===id); if(!c) return;
-
-  const emps=load(K.EMP,[]);
-  const empName=(emps.find(e=>e.id===c.emp)||{}).nombre||'';
-
-  const fechaTxt = new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
-
-  const mensaje = [
-    `Hola ${c.nombre}, confirmación de su cita:`,
-    `🗓 ${fechaTxt}`,
-    `👤 Técnica: ${empName}`,
-    `💈 Servicio: ${c.srv||'-'}`,
-    c.notas ? `📝 Notas: ${c.notas}` : '',
-    cfg.maps ? `📍 Ubicación: ${cfg.maps}` : '',
+  const emps=load(K.EMP,[]); const empName=(emps.find(e=>e.id===c.emp)||{}).nombre||'';
+  const fechaTxt=new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
+  const msg = encodeURIComponent(
+    `Hola ${c.nombre}, confirmación de su cita:\n`+
+    `🗓 ${fechaTxt}\n👤 Técnica: ${empName}\n💈 Servicio: ${c.srv||'-'}\n`+
+    `${c.notas? '📝 Notas: '+c.notas+'\n':''}`+
+    `${cfg.maps? '📍 Ubicación: '+cfg.maps+'\n':''}`+
     `Responda este mensaje para confirmar. ¡Gracias!`
-  ].filter(Boolean).join('\n');
-
-  // 🔑 AHORA usa el teléfono que se ingresó en la cita; si no hay, cae al de Configuración.
-  const phone = normalizePhone(c.tel) || normalizePhone(cfg.waPhone || '');
-  if(!phone){ alert('No hay teléfono válido en la cita ni en Configuración.'); return; }
-
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
-  window.open(url,'_blank');
+  );
+  const phone = cfg.waPhone?.replace(/\D/g,'')||'';
+  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
 }
-
 
 /* ============================================================
    FACTURACIÓN (líneas, totales, exportar, WhatsApp)
@@ -963,7 +940,7 @@ function factWA(num){
   const cfg=load(K.CFG,{});
   const f=factData(num); if(!f) return;
   const msg = encodeURIComponent(
-    `${cfg.waFacto||'Gracias por su visita.'}\n`+
+    `${cfg.waFacto||'Gracias por su compra.'}\n`+
     `Factura #${f.num}\nFecha: ${f.fecha}\nTotal: ${fmtMoney(f.tot)}\n`+
     `${cfg.maps? 'Ubicación: '+cfg.maps+'\n':''}`+
     `Detalle:\n`+f.items.map(i=>`• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`).join('\n')
@@ -1144,7 +1121,7 @@ function toMMDDYYYY(iso){
 }
 async function citaGoogle(){
   const cfg=load(K.CFG,{});
-  if(!cfg.formUrl){ alert('https://docs.google.com/forms/d/e/1FAIpQLSf1UXh09WVyDvNF0tvzPEUQGsArmm81Ice53xoWgzpY-8Ae8g/viewform?usp=pp_url'); return; }
+  if(!cfg.formUrl){ alert('Configura la URL de formResponse en Configuración.'); return; }
   const m=cfg.formMap||{};
   const nombre=byId('a_nombre').value.trim();
   const tel=byId('a_tel').value.trim();
@@ -1322,7 +1299,7 @@ function bindUI(){
     const p = byId('loginPass').value.trim();
     const ok = login(u, p);
     if(!ok){
-      alert('Ingrse su usuario y password');
+      alert('Credenciales inválidas. Usa admin/admin123 o usuario/user123');
       return;
     }
     show('screen-home');
@@ -1336,9 +1313,9 @@ function bindUI(){
 
   // EMPLEADOS
   byId('btnEmpGuardar')?.addEventListener('click', empSave);
-  byId('btnEmpLimpiar')?.addEventListener('click', ()=>{ 
-    byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1'; 
-    delete byId('btnEmpGuardar').dataset.id; 
+  byId('btnEmpLimpiar')?.addEventListener('click', ()=>{
+    byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1';
+    delete byId('btnEmpGuardar').dataset.id;
   });
 
   // AGENDA
@@ -1426,3 +1403,4 @@ window.addEventListener('DOMContentLoaded', ()=> boot());
 </script>
 </body>
 </html>
+
