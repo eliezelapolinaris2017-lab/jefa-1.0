@@ -960,7 +960,7 @@ function factWA(num){
   const cfg=load(K.CFG,{});
   const f=factData(num); if(!f) return;
   const msg = encodeURIComponent(
-    `${cfg.waFacto||'Gracias por su compra.'}\n`+
+    `${cfg.waFacto||'Gracias por su visita.'}\n`+
     `Factura #${f.num}\nFecha: ${f.fecha}\nTotal: ${fmtMoney(f.tot)}\n`+
     `${cfg.maps? 'Ubicación: '+cfg.maps+'\n':''}`+
     `Detalle:\n`+f.items.map(i=>`• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`).join('\n')
