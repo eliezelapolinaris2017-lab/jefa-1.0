@@ -1028,37 +1028,52 @@ function exportPreview(){
   const tipo=byId('ex_tipo').value;
   const emp=byId('ex_emp').value;
   const per=byId('ex_periodo').value;
-  let {desde,hasta} = per==='rango' ? {desde:byId('ex_desde').value, hasta:byId('ex_hasta').value}
-                                    : rango(per, byId('ex_fecha').value||todayISO());
+  let {desde,hasta} = per==='rango'
+    ? {desde:byId('ex_desde').value, hasta:byId('ex_hasta').value}
+    : rango(per, byId('ex_fecha').value||todayISO());
+
   if(!desde||!hasta) { const r=rango('dia', todayISO()); desde=r.desde; hasta=r.hasta; }
+
+  const emps=load(K.EMP,[]);
+  const empName = id => (emps.find(x=>x.id===id)||{}).nombre || '';
+
   let head=[], rows=[];
   if(tipo==='facturas'){
     let facts=load(K.FACTS,[]).filter(f=>f.fecha>=desde && f.fecha<=hasta);
     if(emp) facts=facts.filter(f=>f.emp===emp);
     head=['#','Fecha','Cliente','Empleado','Método','Subtotal','IVU','Total'];
-    rows=facts.map(f=>[f.num,f.fecha,f.cli,f.emp,f.pago,f.sub.toFixed(2),f.tax.toFixed(2),f.tot.toFixed(2)]);
+    rows=facts.map(f=>[
+      f.num, f.fecha, f.cli, empName(f.emp), f.pago,
+      f.sub.toFixed(2), f.tax.toFixed(2), f.tot.toFixed(2)
+    ]);
   }else{
     let citas=load(K.CITAS,[]).filter(c=>c.fecha>=desde && c.fecha<=hasta);
     if(emp) citas=citas.filter(c=>c.emp===emp);
     head=['Fecha','Hora','Cliente','Empleado','Servicio','Tel','Estado'];
-    rows=citas.map(c=>[c.fecha,c.hora,c.nombre,c.emp,c.srv||'',c.tel,c.estado]);
+    rows=citas.map(c=>[
+      c.fecha, c.hora, c.nombre, empName(c.emp), c.srv||'', c.tel, c.estado
+    ]);
   }
-  const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
+
+  // Render vista previa usando ya los NOMBRES (no IDs)
   byId('exHead').innerHTML = head.map(h=>`<th>${h}</th>`).join('');
-  byId('exBody').innerHTML = rows.map(r=>`<tr class="tr">${r.map((c,i)=>`<td>${i===3? empName(c): c}</td>`).join('')}</tr>`).join('');
-  return {head, rows, desde, hasta};
+  byId('exBody').innerHTML = rows
+    .map(r=>`<tr class="tr">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`)
+    .join('');
+
+  return {head, rows, desde, hasta, tipo};
 }
+
 function exportCSV(){
-  const tipo=byId('ex_tipo').value;
-  const {head, rows, desde, hasta}=exportPreview();
+  const {head, rows, desde, hasta, tipo}=exportPreview();
   let csv=head.join(',')+'\n';
   rows.forEach(r=> csv+=r.join(',')+'\n');
   const suf = tipo==='facturas'?'FACTURAS':'CITAS';
   download(`${suf}_${desde}_a_${hasta}.csv`, csv, 'text/csv');
 }
+
 function exportPrint(){
-  const tipo=byId('ex_tipo').value;
-  const {head, rows, desde, hasta}=exportPreview();
+  const {head, rows, desde, hasta, tipo}=exportPreview();
   const html=`
   <html><head><meta charset="utf-8"><title>Exportación</title>
   <style>
@@ -1075,7 +1090,6 @@ function exportPrint(){
   </body></html>`;
   const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
 }
-
 /* ============================================================
    ANALYTICS (KPIs + chart 30 días)
    ============================================================= */
