@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+<title>Salon Pro — Dashboard</title>
+<style>
+/* ====== CSS Base / Theming ====== */
+:root{
+  --bg:#0f0f12;
+  --fg:#ffffff;
+  --muted:#a7a7b1;
+  --primary:#6ee7b7;
+  --topbar:#15151b;
+  --card:#1a1b23;
+  --btn:#26283a;
+  --accent:#93c5fd;
+  --danger:#ef4444;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+}
+/* Reset */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);line-height:1.4}
+h1,h2,h3{font-weight:600}
+button,input,select{font-family:inherit}
+input,select{background:var(--card);border:1px solid var(--muted);color:var(--fg);padding:.4rem;border-radius:.3rem;width:100%}
+button{border:none;border-radius:.3rem;padding:.4rem .8rem;cursor:pointer}
+button.btn-ghost{background:transparent;color:var(--fg)}
+button.btn-primary{background:var(--primary);color:#000;font-weight:600}
+button.btn-danger{background:var(--danger);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--card);padding:1rem;border-radius:.4rem;margin:.4rem 0;box-shadow:0 0 4px rgba(0,0,0,.4)}
+.toolbar{display:flex;gap:.6rem;align-items:center;margin:.2rem 0}
+.table{width:100%;border-collapse:collapse;margin-top:.6rem}
+.table th,.table td{border:1px solid var(--muted);padding:.4rem;text-align:left}
+.table th{background:var(--btn);color:var(--fg)}
+.tr:nth-child(even){background:var(--card)}
+.spacer{flex:1}
+.row{display:flex;flex-wrap:wrap;gap:.6rem}
+.cols-2>*,.cols-3>*,.cols-4>*{flex:1}
+.cols-2>*{flex-basis:calc(50% - .6rem)}
+.cols-3>*{flex-basis:calc(33.33% - .6rem)}
+.cols-4>*{flex-basis:calc(25% - .6rem)}
+.backline{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem}
+.no-print{display:inline-block}
+@media print{
+  .no-print{display:none!important}
+  body{background:#fff;color:#000}
+  .card{box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<header class="backline" style="background:var(--topbar);padding:.6rem 1rem">
+  <h2>Salon Pro</h2>
+  <div class="spacer"></div>
+  <button class="btn-ghost" data-goto="screen-login">Salir</button>
+</header>
+
+<!-- LOGIN -->
+<section id="screen-login" class="screen">
+  <div class="card" style="max-width:400px;margin:2rem auto">
+    <h2>Iniciar Sesión</h2>
+    <div class="row cols-1" style="margin-top:1rem">
+      <input id="l_user" placeholder="Usuario">
+      <input id="l_pass" type="password" placeholder="Contraseña">
+      <button id="doLogin" class="btn-primary">Entrar</button>
+    </div>
+  </div>
+</section>
+
+<!-- HOME -->
+<section id="screen-home" class="screen" style="display:none">
+  <div class="card">
+    <h2>Dashboard</h2>
+    <div class="row cols-2" style="margin-top:1rem">
+      <button class="btn-primary" data-goto="screen-agenda">📅 Agenda</button>
+      <button class="btn-primary" data-goto="screen-facturacion">💵 Facturación</button>
+      <button class="btn-primary" data-goto="screen-export">📤 Exportaciones</button>
+      <button class="btn-primary" data-goto="screen-analytics">📊 Rendimiento</button>
+    </div>
+  </div>
+</section>
+
+<!-- AGENDA -->
+<section id="screen-agenda" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Agenda</h2>
+  </div>
+  <div class="card">
+    <div class="row cols-3">
+      <div><label>Cliente</label><input id="a_nombre" class="input"></div>
+      <div><label>Teléfono</label><input id="a_tel" class="input"></div>
+      <div><label>Servicio</label><input id="a_srv" class="input"></div>
+      <div><label>Empleado</label><select id="a_emp" class="input"></select></div>
+      <div><label>Fecha</label><input id="a_fecha" type="date" class="input"></div>
+      <div><label>Hora</label><input id="a_hora" type="time" class="input"></div>
+      <div><label>Notas</label><input id="a_notas" class="input"></div>
+    </div>
+    <div class="toolbar" style="margin-top:.8rem">
+      <button id="btnAgendaGuardar" class="btn-primary">Guardar cita</button>
+      <button id="btnAgendaWhatsApp" class="btn-ghost">Enviar WhatsApp</button>
+      <button id="btnAgendaGoogle" class="btn-ghost">Enviar a Google Cal</button>
+      <button id="btnAgendaImprimir" class="btn-ghost">Imprimir</button>
+    </div>
+  </div>
+
+  <!-- Filtros del listado -->
+  <div class="card">
+    <div class="toolbar">
+      <b>Listado de citas</b>
+      <div class="spacer"></div>
+      <label class="small">Desde</label>
+      <input id="f_desde" type="date" class="input" style="width:auto">
+      <label class="small">Hasta</label>
+      <input id="f_hasta" type="date" class="input" style="width:auto">
+      <label class="small">Empleado</label>
+      <select id="f_emp" class="input" style="width:auto"></select>
+      <button id="btnAgendaFiltrar" class="btn-ghost">Aplicar</button>
+      <button id="btnAgendaVerTodas" class="btn-ghost">Ver todas</button>
+    </div>
+    <table class="table" id="tblCitas">
+      <thead>
+        <tr class="tr">
+          <th>Fecha</th><th>Hora</th><th>Cliente</th><th>Empleado</th>
+          <th>Servicio</th><th>Tel</th><th>Estado</th><th class="no-print">Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+  <!-- FACTURACIÓN -->
+<section id="screen-facturacion" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Facturación</h2>
+    <div class="spacer"></div>
+    <button id="btnFacturaImprimir" class="btn-ghost no-print">Imprimir</button>
+  </div>
+
+  <div class="card">
+    <div class="row cols-4">
+      <div>
+        <label># Factura</label>
+        <input id="f_num" class="input" placeholder="AUTOMÁTICO" disabled>
+      </div>
+      <div>
+        <label>Cliente</label>
+        <input id="f_cli" class="input" placeholder="Nombre y apellidos">
+      </div>
+      <div>
+        <label>Teléfono</label>
+        <input id="f_tel" class="input" placeholder="+1 787 ...">
+      </div>
+      <div>
+        <label>Empleado</label>
+        <!-- IMPORTANTE: usamos ff_emp (no f_emp) -->
+        <select id="ff_emp" class="input"></select>
+      </div>
+    </div>
+
+    <div class="row cols-4" style="margin-top:.6rem">
+      <div>
+        <label>Fecha</label>
+        <input id="f_fecha" type="date" class="input">
+      </div>
+      <div>
+        <label>Método de pago</label>
+        <select id="f_pago" class="input">
+          <option>ATH Móvil</option>
+          <option>Tarjeta</option>
+          <option>Cash</option>
+        </select>
+      </div>
+      <div>
+        <label>IVU %</label>
+        <input id="f_ivu" type="number" class="input" value="11.5" step=".1" min="0">
+      </div>
+      <div>
+        <label>Notas</label>
+        <input id="f_notas" class="input" placeholder="Opcional">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:.6rem">
+      <div class="toolbar">
+        <b>Conceptos</b>
+        <div class="spacer"></div>
+        <button id="btnAddLinea" class="btn-ghost">Añadir línea</button>
+        <button id="btnLoadServicios" class="btn-ghost">Servicios guardados</button>
+      </div>
+
+      <div id="lineas"></div>
+
+      <hr class="sep" style="border:0;height:1px;background:#2a2a35;width:100%;margin:.8rem 0">
+
+      <div class="row cols-3" style="width:100%">
+        <div class="card">
+          <div class="row cols-2">
+            <div>
+              <label>Subtotal</label>
+              <input id="f_sub" class="input" disabled>
+            </div>
+            <div>
+              <label>IVU</label>
+              <input id="f_tax" class="input" disabled>
+            </div>
+          </div>
+          <div class="row" style="margin-top:.6rem">
+            <label>Total</label>
+            <input id="f_total" class="input" disabled>
+          </div>
+        </div>
+
+        <div class="card">
+          <b>ATH Móvil / QR</b>
+          <div class="row">
+            <input id="ath_alias" class="input" placeholder="Alias o Número de ATH Móvil">
+            <input id="ath_monto" class="input" placeholder="Monto a cobrar (auto)" disabled>
+            <label class="small">Sube tu código QR</label>
+            <input id="ath_qr" type="file" accept="image/*" class="input">
+            <img id="ath_preview" class="preview" alt="QR ATH Móvil" style="max-height:160px;object-fit:contain;background:#0b0e1a;border:1px dashed #3a3a52;border-radius:.4rem;padding:.4rem">
+          </div>
+        </div>
+
+        <div class="card">
+          <b>Acciones</b>
+          <div class="row">
+            <button id="btnFacturaGuardar" class="btn-primary">Guardar Factura</button>
+            <button id="btnFacturaWhatsApp" class="btn-ghost">Enviar por WhatsApp</button>
+            <button id="btnFacturaExportPDF" class="btn-ghost">Exportar PDF (Imprimir)</button>
+            <button id="btnFacturaExportCSV" class="btn-ghost">Exportar Excel (CSV)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historial -->
+  <div class="card" style="margin-top:1rem">
+    <div class="toolbar">
+      <b>Historial de facturas</b>
+      <div class="spacer"></div>
+
+      <label class="small">Rango</label>
+      <input id="h_desde" type="date" class="input" style="width:auto">
+      <input id="h_hasta" type="date" class="input" style="width:auto">
+
+      <label class="small">Empleado</label>
+      <!-- aquí sí usamos h_emp (filtro del historial) -->
+      <select id="h_emp" class="input" style="width:auto"></select>
+
+      <button id="btnHistFiltrar" class="btn-ghost">Filtrar</button>
+    </div>
+
+    <table class="table" id="tblFacturas">
+      <thead>
+        <tr class="tr">
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Empleado</th>
+          <th>Método</th>
+          <th>Total</th>
+          <th class="no-print">Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- EXPORTACIONES -->
+<section id="screen-export" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Exportaciones</h2>
+  </div>
+  <div class="card">
+    <div class="row cols-4">
+      <div>
+        <label>Tipo</label>
+        <select id="ex_tipo" class="input">
+          <option value="facturas">Facturas</option>
+          <option value="citas">Citas</option>
+        </select>
+      </div>
+      <div>
+        <label>Empleado</label>
+        <select id="ex_emp" class="input"></select>
+      </div>
+      <div>
+        <label>Período</label>
+        <select id="ex_periodo" class="input">
+          <option value="dia">Día</option>
+          <option value="semana">Semana</option>
+          <option value="mes">Mes</option>
+          <option value="anio">Año</option>
+          <option value="rango">Rango personalizado</option>
+        </select>
+      </div>
+      <div>
+        <label>Fecha base / inicio</label>
+        <input id="ex_fecha" type="date" class="input">
+      </div>
+    </div>
+
+    <div class="row cols-2" style="margin-top:.6rem" id="ex_rango_wrap">
+      <div><label>Desde</label><input id="ex_desde" type="date" class="input"></div>
+      <div><label>Hasta</label><input id="ex_hasta" type="date" class="input"></div>
+    </div>
+
+    <div class="toolbar" style="margin-top:.8rem">
+      <button id="btnExportCSV" class="btn-ghost">Exportar Excel (CSV)</button>
+      <button id="btnExportPrint" class="btn-ghost">Exportar PDF (Imprimir)</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <b>Vista previa</b>
+    <table class="table" id="tblExport">
+      <thead><tr class="tr" id="exHead"></tr></thead>
+      <tbody id="exBody"></tbody>
+    </table>
+  </div>
+</section>
+  <!-- ANALYTICS -->
+<section id="screen-analytics" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Análisis de rendimiento</h2>
+  </div>
+  <div class="card">
+    <div class="row cols-4">
+      <div class="card"><div>Ingresos (hoy)</div><h3 id="kpi_ingresos_hoy">$0</h3></div>
+      <div class="card"><div>Ingresos (mes)</div><h3 id="kpi_ingresos_mes">$0</h3></div>
+      <div class="card"><div>Citas (hoy)</div><h3 id="kpi_citas_hoy">0</h3></div>
+      <div class="card"><div>No Shows (mes)</div><h3 id="kpi_noshow_mes">0</h3></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="toolbar"><b>Ingresos diarios (30 días)</b></div>
+    <canvas id="chart30" height="180" style="width:100%"></canvas>
+  </div>
+</section>
+
+<!-- EMPLEADOS -->
+<section id="screen-empleados" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Empleados / Técnicas</h2>
+  </div>
+  <div class="card">
+    <div class="row cols-3">
+      <div><label>Nombre</label><input id="e_nombre" class="input" placeholder="Jane Doe"></div>
+      <div><label>Teléfono</label><input id="e_tel" class="input" placeholder="+1 787 ..."></div>
+      <div>
+        <label>Activo</label>
+        <select id="e_activo" class="input"><option value="1">Sí</option><option value="0">No</option></select>
+      </div>
+    </div>
+    <div class="toolbar" style="margin-top:.6rem">
+      <button id="btnEmpGuardar" class="btn-primary">Añadir / Actualizar</button>
+      <button id="btnEmpLimpiar" class="btn-ghost">Limpiar</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <table class="table" id="tblEmpleados">
+      <thead><tr class="tr"><th>Nombre</th><th>Tel</th><th>Estado</th><th class="no-print">Acciones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- CONFIGURACIÓN -->
+<section id="screen-config" class="screen" style="display:none">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Configuración</h2>
+  </div>
+  <div class="card">
+    <b>Branding</b>
+    <div class="row cols-4" style="margin-top:.6rem">
+      <div><label>Nombre del negocio</label><input id="cfg_name" class="input" placeholder="Salon Pro"></div>
+      <div><label>Lema / Subtítulo</label><input id="cfg_sub" class="input" placeholder="Agenda & Facturación"></div>
+      <div><label>Logo</label><input id="cfg_logo" type="file" accept="image/*" class="input"></div>
+      <div><label>Previsualización</label><img id="cfg_logo_prev" style="width:120px;height:120px;object-fit:contain;background:#0b0e1a;border:1px dashed #3a3a52;border-radius:.4rem;padding:.4rem"></div>
+    </div>
+    <div class="row cols-4" style="margin-top:.6rem">
+      <div><label>Fondo (imagen)</label><input id="cfg_bg" type="file" accept="image/*" class="input"></div>
+      <div><label>Opacidad de fondo (0.6 a 1)</label><input id="cfg_bg_op" type="number" step=".05" min="0.6" max="1" value="1" class="input"></div>
+      <div><label>Color primario</label><input id="cfg_primary" type="color" class="input" value="#6ee7b7"></div>
+      <div><label>Color acento</label><input id="cfg_accent" type="color" class="input" value="#93c5fd"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <b>Servicios guardados (para facturación)</b>
+    <div class="row cols-3" style="margin-top:.6rem">
+      <div><label>Servicio</label><input id="sv_nombre" class="input" placeholder="Corte de cabello"></div>
+      <div><label>Precio</label><input id="sv_precio" type="number" step=".01" class="input" placeholder="25.00"></div>
+      <div style="display:flex;align-items:flex-end"><button id="btnSvAgregar" class="btn-ghost">Agregar servicio</button></div>
+    </div>
+    <div class="row" style="margin-top:.6rem">
+      <table class="table" id="tblServicios">
+        <thead><tr class="tr"><th>Servicio</th><th>Precio</th><th class="no-print">Acciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <b>Integración Google (Form + Apps Script)</b>
+    <div class="row cols-2" style="margin-top:.6rem">
+      <div>
+        <label>URL de Google Form (respuesta)</label>
+        <input id="cfg_form_url" class="input" placeholder="https://docs.google.com/forms/d/e/.../formResponse">
+        <p class="help">Usada para enviar citas por POST. Debe apuntar a <code>.../formResponse</code>.</p>
+      </div>
+      <div>
+        <label>URL Web App Apps Script (opcional)</label>
+        <input id="cfg_script_url" class="input" placeholder="https://script.google.com/macros/s/.../exec">
+        <p class="help">Para guardar/leer datos desde Google Sheets (como base de datos).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <b>WhatsApp / Dirección</b>
+    <div class="row cols-3" style="margin-top:.6rem">
+      <div><label>Teléfono WhatsApp</label><input id="cfg_wa_phone" class="input" placeholder="+1 787 000 0000"></div>
+      <div><label>Texto base facturas</label><input id="cfg_wa_fact" class="input" placeholder="Gracias por su compra. Detalle:"></div>
+      <div><label>Ubicación (Maps URL)</label><input id="cfg_maps" class="input" placeholder="https://maps.google.com/?q=..."></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <div class="toolbar">
+      <button id="btnExportConfig" class="btn-ghost">Exportar configuración</button>
+      <label class="small">Importar</label><input id="cfgImport" type="file" accept="application/json" class="input" style="width:auto">
+    </div>
+  </div>
+</section>
+
+<footer class="card" style="margin:2rem 0">
+  <div>© <span id="year"></span> <span id="footerName">Salon Pro</span> — Todos los derechos reservados.</div>
+</footer>
+
+<!-- ================= JS APP ================= -->
+<script>
+/* =========================
+   STORAGE KEYS
+   ========================= */
+const K = {
+  USERS: 'sp_users',
+  SESSION: 'sp_session',
+  EMP: 'sp_empleados',
+  CITAS: 'sp_citas',
+  FACTS: 'sp_facturas',
+  CFG: 'sp_config',
+  SVC: 'sp_servicios',
+  COUNTER_F: 'sp_fact_counter'
+};
+
+/* =========================
+   UTILIDADES
+   ========================= */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const byId = id => document.getElementById(id);
+const fmtMoney = n => (Number(n||0)).toLocaleString('es-PR',{style:'currency',currency:'USD'});
+const todayISO = () => new Date().toISOString().slice(0,10);
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2));
+const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const load = (k,d=null)=>JSON.parse(localStorage.getItem(k)||JSON.stringify(d));
+const download = (filename, content, type='text/plain')=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+};
+// Normaliza un teléfono a dígitos (usa PR/US)
+const normalizePhone = (raw, fallback='')=>{
+  const digits = String(raw||'').replace(/\D/g,'');
+  if(!digits) return String(fallback||'').replace(/\D/g,'');
+  // acepta 10 (añade +1) o 11 empezando por 1
+  if(digits.length===10) return '1'+digits;
+  if(digits.length===11 && digits.startsWith('1')) return digits;
+  return digits; // como venga
+};
+
+/* =========================
+   ESTADO INICIAL
+   ========================= */
+function ensureDefaults(){
+  if(!load(K.USERS)) save(K.USERS, [
+    {user:'admin',   pass:'admin123', role:'admin'},
+    {user:'usuario', pass:'user123',  role:'usuario'}
+  ]);
+  if(!load(K.EMP)) save(K.EMP, [
+    {id:uuid(), nombre:'Cynthia', tel:'', activo:1},
+    {id:uuid(), nombre:'María',   tel:'', activo:1}
+  ]);
+  if(load(K.COUNTER_F)==null) save(K.COUNTER_F, 1001);
+  if(!load(K.CFG)) save(K.CFG, {
+    name:'Salon Pro', sub:'Agenda & Facturación',
+    primary:'#6ee7b7', accent:'#93c5fd', bgOpacity:1,
+    logo:null, bg:null,
+    formUrl:'',
+    scriptUrl:'',
+    waPhone:'17870000000', waFacto:'Gracias por su visita. Detalle:',
+    maps:'',
+    formMap:{
+      nombre:"entry.126099183",
+      tel:"entry.885012759",
+      fecha:"entry.2059036119",
+      hora:"entry.805023101",
+      servicio:"entry.1764664020",
+      tecnica:"entry.1003942216",
+      correo:"entry.1481210954"
+    }
+  });
+  if(!load(K.SVC)) save(K.SVC, [
+    {id:uuid(), nombre:'Corte de cabello', precio:25},
+    {id:uuid(), nombre:'Color', precio:60}
+  ]);
+  if(!load(K.CITAS)) save(K.CITAS, []);
+  if(!load(K.FACTS)) save(K.FACTS, []);
+}
+
+/* =========================
+   BRAND / TEMA
+   ========================= */
+function applyBrand(){
+  const cfg=load(K.CFG,{});
+  byId('footerName').textContent = cfg.name||'Salon Pro';
+  byId('year').textContent = new Date().getFullYear();
+  document.documentElement.style.setProperty('--primary', cfg.primary||'#6ee7b7');
+  document.documentElement.style.setProperty('--accent',  cfg.accent ||'#93c5fd');
+  document.body.style.setProperty('--bg-image', cfg.bg?`url('${cfg.bg}')`:'none');
+  document.body.style.setProperty('--bg-opacity', cfg.bgOpacity??1);
+}
+
+</script>
+  <script>
+/* =========================
+   NAVEGACIÓN / LOGIN
+   ========================= */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  const el=byId(id); if(el) el.style.display='block';
+}
+function login(user, pass){
+  const users = load(K.USERS, []);
+  const u = users.find(x=>x.user===user && x.pass===pass);
+  if(!u) return false;
+  save(K.SESSION,{user:u.user, role:u.role, ts:Date.now()});
+  return true;
+}
+function logout(){
+  localStorage.removeItem(K.SESSION);
+  show('screen-login');
+}
+
+/* =========================
+   EMPLEADOS
+   ========================= */
+function empNameById(id){
+  const e = load(K.EMP,[]).find(x=>x.id===id);
+  return e? e.nombre : '—';
+}
+function renderEmpleadosSelects(){
+  const emps = load(K.EMP,[]).filter(e=>+e.activo===1);
+  const opts = ['<option value="">Seleccione</option>']
+    .concat(emps.map(e=>`<option value="${e.id}">${e.nombre}</option>`)).join('');
+  // formularios
+  const targets = ['a_emp','ff_emp'];
+  targets.forEach(id=>{ const el=byId(id); if(el){ el.innerHTML=opts; if(emps[0]) el.value=emps[0].id; }});
+  // filtros
+  const optsFiltro = ['<option value="">Todos</option>'].concat(emps.map(e=>`<option value="${e.id}">${e.nombre}</option>`)).join('');
+  [['f_emp'],['h_emp'],['ex_emp']].forEach(([id])=>{ const el=byId(id); if(el) el.innerHTML=optsFiltro; });
+}
+function renderEmpleadosTabla(){
+  const tb = byId('tblEmpleados')?.querySelector('tbody'); if(!tb) return;
+  const emps=load(K.EMP,[]);
+  tb.innerHTML = emps.map(e=>`
+    <tr class="tr">
+      <td>${e.nombre}</td>
+      <td>${e.tel||''}</td>
+      <td>${+e.activo? 'Activo':'Inactivo'}</td>
+      <td class="no-print">
+        <button class="btn-ghost" onclick="empEdit('${e.id}')">Editar</button>
+        <button class="btn-danger" onclick="empDel('${e.id}')">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+function empEdit(id){
+  const e=load(K.EMP,[]).find(x=>x.id===id); if(!e) return;
+  byId('e_nombre').value=e.nombre;
+  byId('e_tel').value=e.tel||'';
+  byId('e_activo').value=String(e.activo?1:0);
+  byId('btnEmpGuardar').dataset.id=id;
+}
+function empDel(id){
+  save(K.EMP, load(K.EMP,[]).filter(x=>x.id!==id));
+  renderEmpleadosTabla(); renderEmpleadosSelects();
+}
+function empSave(){
+  const nombre=byId('e_nombre').value.trim();
+  const tel=byId('e_tel').value.trim();
+  const activo=+byId('e_activo').value;
+  if(!nombre) return alert('Nombre requerido');
+  let emps=load(K.EMP,[]);
+  const idEdit=byId('btnEmpGuardar').dataset.id;
+  if(idEdit){
+    emps=emps.map(e=> e.id===idEdit ? {...e, nombre, tel, activo} : e);
+    delete byId('btnEmpGuardar').dataset.id;
+  }else{
+    emps.push({id:uuid(), nombre, tel, activo});
+  }
+  save(K.EMP, emps);
+  byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1';
+  renderEmpleadosTabla(); renderEmpleadosSelects();
+}
+
+/* =========================
+   AGENDA
+   ========================= */
+function citaGuardar(){
+  const nombre=byId('a_nombre').value.trim();
+  const tel=byId('a_tel').value.trim();
+  const emp=byId('a_emp').value;
+  const srv=byId('a_srv').value.trim();
+  const fecha=byId('a_fecha').value;
+  const hora=byId('a_hora').value;
+  const notas=byId('a_notas').value.trim();
+  if(!nombre || !tel || !emp || !fecha || !hora) return alert('Completa nombre, teléfono, empleado, fecha y hora.');
+  const citas=load(K.CITAS,[]);
+  citas.push({id:uuid(), nombre, tel, emp, srv, fecha, hora, notas, estado:'programada'});
+  save(K.CITAS, citas);
+  renderCitas();
+  alert('Cita guardada.');
+}
+function citaBorrar(id){
+  save(K.CITAS, load(K.CITAS,[]).filter(x=>x.id!==id));
+  renderCitas();
+}
+function citaEditar(id){
+  const c=load(K.CITAS,[]).find(x=>x.id===id); if(!c) return;
+  byId('a_nombre').value=c.nombre;
+  byId('a_tel').value=c.tel;
+  byId('a_emp').value=c.emp;
+  byId('a_srv').value=c.srv||'';
+  byId('a_fecha').value=c.fecha;
+  byId('a_hora').value=c.hora;
+  byId('a_notas').value=c.notas||'';
+}
+function citaWhatsAppFromForm(){
+  // Enviar WA con el teléfono del cliente desde el formulario actual (sin crear cita)
+  const cfg=load(K.CFG,{});
+  const nombre=byId('a_nombre').value.trim()||'Cliente';
+  const tel=byId('a_tel').value.trim();
+  const emp=byId('a_emp').value;
+  const srv=byId('a_srv').value.trim()||'-';
+  const fecha=byId('a_fecha').value||todayISO();
+  const hora=byId('a_hora').value||'00:00';
+  const notas=byId('a_notas').value.trim();
+  const emps=load(K.EMP,[]); const empName=(emps.find(e=>e.id===emp)||{}).nombre||'';
+  const fechaTxt=new Date(fecha+'T'+hora).toLocaleString('es-PR');
+  const msg = encodeURIComponent(
+    `Hola ${nombre}, confirmación de su cita:\n`+
+    `🗓 ${fechaTxt}\n👤 Técnica: ${empName}\n💈 Servicio: ${srv}\n`+
+    `${notas? '📝 Notas: '+notas+'\n':''}`+
+    `${load(K.CFG,{}).maps? '📍 Ubicación: '+load(K.CFG,{}).maps+'\n':''}`+
+    `Responda este mensaje para confirmar. ¡Gracias!`
+  );
+  const phone = normalizePhone(tel, load(K.CFG,{}).waPhone||'');
+  if(!phone) return alert('Necesitas un teléfono del cliente o configurar WhatsApp en Configuración.');
+  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+}
+function renderCitas(){
+  const tb=byId('tblCitas').querySelector('tbody');
+  let citas=load(K.CITAS,[]);
+  const d=byId('f_desde').value, h=byId('f_hasta').value, e=byId('f_emp').value;
+  if(d) citas=citas.filter(c=>c.fecha>=d);
+  if(h) citas=citas.filter(c=>c.fecha<=h);
+  if(e) citas=citas.filter(c=>c.emp===e);
+  citas.sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  tb.innerHTML = citas.map(c=>`
+    <tr class="tr">
+      <td>${c.fecha}</td>
+      <td>${c.hora}</td>
+      <td>${c.nombre}</td>
+      <td>${empNameById(c.emp)}</td>
+      <td>${c.srv||''}</td>
+      <td>${c.tel}</td>
+      <td>${c.estado||'programada'}</td>
+      <td class="no-print">
+        <button class="btn-ghost" onclick="citaWA('${c.id}')">WA</button>
+        <button class="btn-ghost" onclick="citaEditar('${c.id}')">Editar</button>
+        <button class="btn-danger" onclick="citaBorrar('${c.id}')">Borrar</button>
+      </td>
+    </tr>`).join('');
+}
+function citaWA(id){
+  const cfg=load(K.CFG,{});
+  const c=load(K.CITAS,[]).find(x=>x.id===id); if(!c) return;
+  const empName=empNameById(c.emp);
+  const fechaTxt=new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
+  const msg = encodeURIComponent(
+    `Hola ${c.nombre}, confirmación de su cita:\n`+
+    `🗓 ${fechaTxt}\n👤 Técnica: ${empName}\n💈 Servicio: ${c.srv||'-'}\n`+
+    `${c.notas? '📝 Notas: '+c.notas+'\n':''}`+
+    `${cfg.maps? '📍 Ubicación: '+cfg.maps+'\n':''}`+
+    `Responda este mensaje para confirmar. ¡Gracias!`
+  );
+  const phone = normalizePhone(c.tel, cfg.waPhone||'');
+  if(!phone) return alert('No hay teléfono de cliente ni teléfono de WhatsApp configurado.');
+  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+}
+
+/* =========================
+   FACTURACIÓN
+   ========================= */
+function nextFacturaNumber(){
+  let n=load(K.COUNTER_F,1001); save(K.COUNTER_F, n+1); return n;
+}
+function lineaTpl(id,data={}){
+  return `
+  <div class="row cols-4 tr" style="padding:.6rem; margin:.4rem 0">
+    <div><label>Descripción</label><input data-id="${id}" data-k="desc" class="input" placeholder="Servicio o producto" value="${data.desc||''}"></div>
+    <div><label>Cant.</label><input data-id="${id}" data-k="cant" type="number" min="1" step="1" class="input" value="${data.cant||1}"></div>
+    <div><label>Precio</label><input data-id="${id}" data-k="precio" type="number" step=".01" class="input" value="${data.precio||0}"></div>
+    <div style="display:flex; align-items:flex-end; gap:.5rem">
+      <input data-id="${id}" data-k="total" class="input" disabled value="${fmtMoney((data.cant||1)*(data.precio||0))}">
+      <button class="btn-danger" onclick="lineaDel('${id}')">X</button>
+    </div>
+  </div>`;
+}
+function recalcFactura(){
+  const rows=[...$$('#lineas [data-k="cant"]')].map(el=>{
+    const id=el.dataset.id;
+    const cant=+el.value||0;
+    const precio=+byId('lineas').querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
+    const tot=cant*precio;
+    byId('lineas').querySelector(`[data-id="${id}"][data-k="total"]`).value=fmtMoney(tot);
+    return tot;
+  });
+  const sub = rows.reduce((a,b)=>a+b,0);
+  const ivu = sub*(+byId('f_ivu').value/100);
+  const tot = sub+ivu;
+  byId('f_sub').value=fmtMoney(sub);
+  byId('f_tax').value=fmtMoney(ivu);
+  byId('f_total').value=fmtMoney(tot);
+  byId('ath_monto').value=fmtMoney(tot);
+}
+function lineaAdd(data={}){
+  const id=uuid();
+  byId('lineas').insertAdjacentHTML('beforeend', lineaTpl(id,data));
+  ['cant','precio'].forEach(k=>{
+    byId('lineas').querySelector(`[data-id="${id}"][data-k="${k}"]`).addEventListener('input', recalcFactura);
+  });
+  recalcFactura();
+}
+function lineaDel(id){
+  const node=[...byId('lineas').children].find(div=>div.querySelector(`[data-id="${id}"]`));
+  if(node) node.remove(); recalcFactura();
+}
+function facturaNueva(){
+  byId('f_num').value = nextFacturaNumber();
+  byId('f_cli').value=''; byId('f_tel').value='';
+  const firstEmp = load(K.EMP,[]).find(e=>+e.activo===1);
+  if(byId('ff_emp')) byId('ff_emp').value = firstEmp? firstEmp.id : '';
+  byId('f_fecha').value = todayISO();
+  byId('f_notas').value='';
+  byId('f_pago').value='ATH Móvil';
+  byId('lineas').innerHTML='';
+  recalcFactura();
+}
+function facturaGuardar(){
+  const num=byId('f_num').value || nextFacturaNumber();
+  const cli=byId('f_cli').value.trim();
+  const tel=byId('f_tel').value.trim();
+  const emp=byId('ff_emp').value;
+  const fecha=byId('f_fecha').value;
+  const pago=byId('f_pago').value;
+  const ivu=+byId('f_ivu').value;
+  const notas=byId('f_notas').value.trim();
+  const items=[...$$('#lineas [data-k="desc"]')].map(el=>{
+    const id=el.dataset.id;
+    const cant=+byId('lineas').querySelector(`[data-id="${id}"][data-k="cant"]`).value||0;
+    const precio=+byId('lineas').querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
+    return {desc:el.value, cant, precio};
+  });
+  if(!cli || !fecha || items.length===0) return alert('Cliente, fecha y al menos una línea.');
+  const sub=items.reduce((a,i)=>a+i.cant*i.precio,0), tax=sub*(ivu/100), tot=sub+tax;
+  let facts=load(K.FACTS,[]);
+  const exists=facts.find(x=>x.num==num);
+  const data={id:exists?.id||uuid(), num, cli, tel, emp, fecha, pago, ivu, notas, items, sub, tax, tot};
+  if(exists){ facts = facts.map(x=> x.num==num? data : x); } else { facts.push(data); }
+  save(K.FACTS,facts);
+  renderFacturas();
+  alert('Factura guardada.');
+}
+function renderFacturas(){
+  const tb=byId('tblFacturas').querySelector('tbody');
+  let facts=load(K.FACTS,[]);
+  const d=byId('h_desde').value, h=byId('h_hasta').value, e=byId('h_emp').value;
+  if(d) facts=facts.filter(f=>f.fecha>=d);
+  if(h) facts=facts.filter(f=>f.fecha<=h);
+  if(e) facts=facts.filter(f=>f.emp===e);
+  facts.sort((a,b)=> (b.fecha+a.num).localeCompare(a.fecha+b.num));
+  tb.innerHTML=facts.map(f=>`
+    <tr class="tr">
+      <td>${f.num}</td>
+      <td>${f.fecha}</td>
+      <td>${f.cli}</td>
+      <td>${empNameById(f.emp)}</td>
+      <td>${f.pago}</td>
+      <td>${fmtMoney(f.tot)}</td>
+      <td class="no-print">
+        <button class="btn-ghost" onclick="factImprimir(${f.num})">PDF</button>
+        <button class="btn-ghost" onclick="factCSV(${f.num})">CSV</button>
+        <button class="btn-ghost" onclick="factWA(${f.num})">WA</button>
+        <button class="btn-danger" onclick="factDel(${f.num})">X</button>
+      </td>
+    </tr>`).join('');
+}
+function factData(num){ return load(K.FACTS,[]).find(f=>f.num==num); }
+function factDel(num){ save(K.FACTS, load(K.FACTS,[]).filter(f=>f.num!=num)); renderFacturas(); }
+function factWA(num){
+  const cfg=load(K.CFG,{});
+  const f=factData(num); if(!f) return;
+  const msg = encodeURIComponent(
+    `${cfg.waFacto||'Gracias por su compra.'}\n`+
+    `Factura #${f.num}\nFecha: ${f.fecha}\nTotal: ${fmtMoney(f.tot)}\n`+
+    `${cfg.maps? 'Ubicación: '+cfg.maps+'\n':''}`+
+    `Detalle:\n`+f.items.map(i=>`• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`).join('\n')
+  );
+  const phone = normalizePhone(f.tel, cfg.waPhone||'');
+  if(!phone) return alert('No hay teléfono de cliente ni teléfono de WhatsApp configurado.');
+  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
+}
+function factCSV(num){
+  const f=factData(num); if(!f) return;
+  let csv='Descripcion,Cantidad,Precio,Total\n';
+  f.items.forEach(i=> csv+=`${i.desc},${i.cant},${i.precio},${(i.cant*i.precio).toFixed(2)}\n`);
+  csv+=`\nSubtotal,, ,${f.sub.toFixed(2)}\nIVU (${f.ivu}%),, ,${f.tax.toFixed(2)}\nTotal,, ,${f.tot.toFixed(2)}\n`;
+  download(`Factura_${f.num}.csv`, csv, 'text/csv');
+}
+function factImprimir(num){
+  const f=factData(num); if(!f) return;
+  const cfg=load(K.CFG,{});
+  const html=`
+  <html><head><meta charset="utf-8"><title>Factura ${f.num}</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Inter,Arial; padding:20px}
+    h1,h2,h3{margin:0}
+    table{width:100%; border-collapse:collapse; margin-top:10px}
+    th,td{border:1px solid #ddd; padding:8px}
+    .right{text-align:right}
+  </style></head><body>
+  <h2>${cfg.name||'Salon Pro'}</h2>
+  <div>${cfg.sub||''}</div>
+  <hr>
+  <h3>Factura #${f.num}</h3>
+  <div>Fecha: ${f.fecha}</div>
+  <div>Cliente: ${f.cli}</div>
+  <div>Tel: ${f.tel||''}</div>
+  <div>Empleado: ${empNameById(f.emp)}</div>
+  <table>
+    <thead><tr><th>Descripción</th><th>Cant</th><th>Precio</th><th>Total</th></tr></thead>
+    <tbody>
+      ${f.items.map(i=>`<tr><td>${i.desc}</td><td class="right">${i.cant}</td><td class="right">${i.precio.toFixed(2)}</td><td class="right">${(i.cant*i.precio).toFixed(2)}</td></tr>`).join('')}
+    </tbody>
+  </table>
+  <h3 class="right">Subtotal: ${f.sub.toFixed(2)}</h3>
+  <h3 class="right">IVU (${f.ivu}%): ${f.tax.toFixed(2)}</h3>
+  <h2 class="right">Total: ${f.tot.toFixed(2)}</h2>
+  <p>${cfg.waFacto||''}</p>
+  </body></html>`;
+  const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+}
+
+/* =========================
+   EXPORTACIONES (nombres, no IDs)
+   ========================= */
+function rango(periodo, base){
+  const d=new Date(base||todayISO());
+  let ini=new Date(d), fin=new Date(d);
+  if(periodo==='semana'){
+    const day=d.getDay(); // 0 dom
+    ini.setDate(d.getDate()-(day||7)+1); fin=new Date(ini); fin.setDate(ini.getDate()+6);
+  }else if(periodo==='mes'){
+    ini=new Date(d.getFullYear(), d.getMonth(), 1);
+    fin=new Date(d.getFullYear(), d.getMonth()+1, 0);
+  }else if(periodo==='anio'){
+    ini=new Date(d.getFullYear(),0,1); fin=new Date(d.getFullYear(),11,31);
+  }
+  const toISO=x=>x.toISOString().slice(0,10);
+  return {desde:toISO(ini), hasta:toISO(fin)};
+}
+function exportPreview(){
+  const tipo=byId('ex_tipo').value;
+  const emp=byId('ex_emp').value;
+  const per=byId('ex_periodo').value;
+  let {desde,hasta} = per==='rango' ? {desde:byId('ex_desde').value, hasta:byId('ex_hasta').value}
+                                    : rango(per, byId('ex_fecha').value||todayISO());
+  if(!desde||!hasta){ const r=rango('dia', todayISO()); desde=r.desde; hasta=r.hasta; }
+  let head=[], rows=[];
+  if(tipo==='facturas'){
+    let facts=load(K.FACTS,[]).filter(f=>f.fecha>=desde && f.fecha<=hasta);
+    if(emp) facts=facts.filter(f=>f.emp===emp);
+    head=['#','Fecha','Cliente','Empleado','Método','Subtotal','IVU','Total'];
+    rows=facts.map(f=>[f.num,f.fecha,f.cli,empNameById(f.emp),f.pago,f.sub.toFixed(2),f.tax.toFixed(2),f.tot.toFixed(2)]);
+  }else{
+    let citas=load(K.CITAS,[]).filter(c=>c.fecha>=desde && c.fecha<=hasta);
+    if(emp) citas=citas.filter(c=>c.emp===emp);
+    head=['Fecha','Hora','Cliente','Empleado','Servicio','Tel','Estado'];
+    rows=citas.map(c=>[c.fecha,c.hora,c.nombre,empNameById(c.emp),c.srv||'',c.tel,c.estado||'programada']);
+  }
+  byId('exHead').innerHTML = head.map(h=>`<th>${h}</th>`).join('');
+  byId('exBody').innerHTML = rows.map(r=>`<tr class="tr">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+  return {head, rows, desde, hasta, tipo};
+}
+function exportCSV(){
+  const {head, rows, desde, hasta, tipo}=exportPreview();
+  let csv=head.join(',')+'\n';
+  rows.forEach(r=> csv+=r.join(',')+'\n');
+  const suf = tipo==='facturas'?'FACTURAS':'CITAS';
+  download(`${suf}_${desde}_a_${hasta}.csv`, csv, 'text/csv');
+}
+function exportPrint(){
+  const {head, rows, desde, hasta, tipo}=exportPreview();
+  const html=`
+  <html><head><meta charset="utf-8"><title>Exportación</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Inter,Arial; padding:20px}
+    table{width:100%; border-collapse:collapse; margin-top:10px}
+    th,td{border:1px solid #ddd; padding:6px}
+    h2,h3{margin:0}
+  </style>
+  </head><body>
+    <h2>Exportación ${tipo.toUpperCase()}</h2>
+    <h3>${desde} a ${hasta}</h3>
+    <table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>
+  </body></html>`;
+  const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+}
+
+/* =========================
+   SERVICIOS (para facturación)
+   ========================= */
+function renderServicios(){
+  const tb=byId('tblServicios')?.querySelector('tbody'); if(!tb) return;
+  const sv=load(K.SVC,[]);
+  tb.innerHTML = sv.map(s=>`
+    <tr class="tr">
+      <td>${s.nombre}</td>
+      <td>${fmtMoney(s.precio)}</td>
+      <td class="no-print">
+        <button class="btn-ghost" onclick="svUse('${s.id}')">Usar en factura</button>
+      </td>
+    </tr>`).join('');
+}
+function svUse(id){
+  const s=load(K.SVC,[]).find(x=>x.id===id); if(!s) return;
+  lineaAdd({desc:s.nombre, cant:1, precio:s.precio});
+}
+
+/* =========================
+   BINDINGS + BOOT
+   ========================= */
+function bindUI(){
+  // navegación
+  document.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> show(b.dataset.goto)));
+
+  // login
+  byId('doLogin').addEventListener('click', ()=>{
+    const u=byId('l_user').value.trim(), p=byId('l_pass').value.trim();
+    if(!login(u,p)) return alert('Credenciales inválidas. Usa admin/admin123 o usuario/user123');
+    show('screen-home');
+  });
+
+  // empleados
+  byId('btnEmpGuardar').addEventListener('click', empSave);
+  byId('btnEmpLimpiar').addEventListener('click', ()=>{
+    byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1';
+    delete byId('btnEmpGuardar').dataset.id;
+  });
+
+  // agenda
+  byId('btnAgendaGuardar').addEventListener('click', citaGuardar);
+  byId('btnAgendaFiltrar').addEventListener('click', renderCitas);
+  byId('btnAgendaVerTodas').addEventListener('click', ()=>{
+    byId('f_desde').value=''; byId('f_hasta').value=''; byId('f_emp').value='';
+    renderCitas();
+  });
+  byId('btnAgendaWhatsApp').addEventListener('click', citaWhatsAppFromForm);
+  byId('btnAgendaImprimir').addEventListener('click', ()=>window.print());
+
+  // facturación
+  byId('btnAddLinea').addEventListener('click', ()=>lineaAdd());
+  byId('btnLoadServicios').addEventListener('click', ()=>renderServicios());
+  byId('f_ivu').addEventListener('input', recalcFactura);
+  byId('btnFacturaGuardar').addEventListener('click', facturaGuardar);
+  byId('btnFacturaExportCSV').addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factCSV(n); });
+  byId('btnFacturaExportPDF').addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factImprimir(n); });
+  byId('btnFacturaWhatsApp').addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factWA(n); });
+  byId('btnHistFiltrar').addEventListener('click', renderFacturas);
+
+  // exportaciones
+  byId('ex_periodo').addEventListener('change', ()=>{
+    const isR=byId('ex_periodo').value==='rango';
+    byId('ex_rango_wrap').style.display=isR?'flex':'none';
+  });
+  byId('btnExportCSV').addEventListener('click', exportCSV);
+  byId('btnExportPrint').addEventListener('click', exportPrint);
+}
+
+function boot(){
+  ensureDefaults();
+  applyBrand();
+  renderEmpleadosTabla();
+  renderEmpleadosSelects();
+  renderServicios();
+
+  // fechas por defecto
+  if(byId('a_fecha')) byId('a_fecha').value = todayISO();
+  if(byId('f_fecha')) byId('f_fecha').value = todayISO();
+
+  renderCitas();
+  renderFacturas();
+  facturaNueva();
+
+  const ses=load(K.SESSION,null);
+  if(ses){ show('screen-home'); } else { show('screen-login'); }
+
+  bindUI();
+}
+
+window.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
+  
