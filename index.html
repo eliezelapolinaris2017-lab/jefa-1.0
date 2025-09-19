@@ -74,19 +74,122 @@ button:disabled{opacity:.5;cursor:not-allowed}
   </div>
 </section>
 
-<!-- HOME -->
-<section id="screen-home" class="screen" style="display:none">
-  <div class="card">
-    <h2>Dashboard</h2>
-    <div class="row cols-2" style="margin-top:1rem">
-      <button class="btn-primary" data-goto="screen-agenda">📅 Agenda</button>
-      <button class="btn-primary" data-goto="screen-facturacion">💵 Facturación</button>
-      <button class="btn-primary" data-goto="screen-export">📤 Exportaciones</button>
-      <button class="btn-primary" data-goto="screen-analytics">📊 Rendimiento</button>
+<!-- ============ INICIO / MENÚ (DISEÑO ORIGINAL) ============ -->
+<section id="screen-home" class="screen">
+  <div class="row">
+    <div class="backline no-print">
+      <h2 style="margin:0">Menú principal</h2>
+      <span class="spacer"></span>
+      <span class="help">Selecciona una sección</span>
+    </div>
+
+    <div class="menu-grid">
+      <div class="menu-card">
+        <h3>Agenda de citas</h3>
+        <p>Crear, listar, evitar duplicados, “no show”, WhatsApp y Google.</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-agenda">Abrir Agenda</button>
+        </div>
+      </div>
+
+      <div class="menu-card">
+        <h3>Facturación</h3>
+        <p>Genera facturas y envíalas por WhatsApp. Exporta PDF/CSV.</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-facturacion">Abrir Facturación</button>
+        </div>
+      </div>
+
+      <div class="menu-card">
+        <h3>Exportaciones</h3>
+        <p>Por empleado / día / semana / mes / año (PDF / CSV).</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-export">Abrir Exportaciones</button>
+        </div>
+      </div>
+
+      <div class="menu-card">
+        <h3>Análisis de rendimiento</h3>
+        <p>KPIs y gráfica 30 días.</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-analytics">Ver Análisis</button>
+        </div>
+      </div>
+
+      <div class="menu-card">
+        <h3>Empleados</h3>
+        <p>Añade / edita empleados para agenda y facturas.</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-empleados">Gestionar</button>
+        </div>
+      </div>
+
+      <div class="menu-card">
+        <h3>Configuración</h3>
+        <p>Colores, logo, fondo, Google, ATH Móvil, exportar/importar.</p>
+        <div class="actions">
+          <button class="btn-primary" data-goto="screen-config">Abrir Config</button>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- ============ ANALYTICS (DISEÑO ORIGINAL) ============ -->
+<section id="screen-analytics" class="screen">
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Análisis de rendimiento</h2>
+  </div>
+
+  <!-- KPIs con el estilo original -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="label">Ingresos (hoy)</div>
+      <div class="value" id="kpi_ingresos_hoy">$0</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Ingresos (mes)</div>
+      <div class="value" id="kpi_ingresos_mes">$0</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Citas (hoy)</div>
+      <div class="value" id="kpi_citas_hoy">0</div>
+    </div>
+    <div class="kpi">
+      <div class="label">No Shows (mes)</div>
+      <div class="value" id="kpi_noshow_mes">0</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:1rem">
+    <div class="card">
+      <div class="toolbar">
+        <b>Ingresos diarios (últimos 30 días)</b>
+        <div class="spacer"></div>
+        <span class="help">Gráfica canvas sin librerías</span>
+      </div>
+      <canvas id="chart30" height="180"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FUNCIÓN show(id) CORRECTA (usar .active) ============ -->
+<script>
+function show(id){
+  // Volvemos al mecanismo original con clase 'active' para respetar el diseño/animación
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (target){ target.classList.add('active'); }
+  // Controlar visibilidad por rol tal como estaba
+  const ses = load(K.SESSION, null);
+  const adminOnly = ['screen-export','screen-analytics','screen-empleados','screen-config'];
+  adminOnly.forEach(h=>{
+    const el=document.getElementById(h); if(!el) return;
+    if(ses?.role==='usuario') el.classList.add('hidden'); else el.classList.remove('hidden');
+  });
+}
+</script>
 <!-- AGENDA -->
 <section id="screen-agenda" class="screen" style="display:none">
   <div class="backline">
