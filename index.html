@@ -946,61 +946,35 @@ function renderFacturas(){
 }
 function factData(num){ return load(K.FACTS,[]).find(f=>f.num==num); }
 function factDel(num){ save(K.FACTS, load(K.FACTS,[]).filter(f=>f.num!=num)); renderFacturas(); }
+// Enviar factura por WhatsApp → a la TÉCNICA, no a la clienta
 function factWA(num){
-  const cfg=load(K.CFG,{});
-  const f=factData(num); if(!f) return;
+ const cfg = load(K.CFG,{});
+ const f = factData(num);
+ if(!f) return;
 
-  // Usa teléfono del cliente si existe; si no, el configurado
-  const phone = (f.tel || cfg.waPhone || '').replace(/\D/g,'');
+ // Buscar el teléfono de la TÉCNICA
+ const emps = load(K.EMP,[]);
+ const emp = emps.find(e => e.id === f.emp) || {};
+ const phone = (emp.tel || cfg.waPhone || '').replace(/\D/g,'');
 
-  const msg = encodeURIComponent(
-    `${cfg.waFacto||'Gracias por su visita.'}\n`+
-    `Factura #${f.num}\nFecha: ${f.fecha}\nTotal: ${fmtMoney(f.tot)}\n`+
-    `${cfg.maps? 'Ubicación: '+cfg.maps+'\n':''}`+
-    `Detalle:\n`+f.items.map(i=>`• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`).join('\n')
-  );
-  window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
-}
-function factCSV(num){
-  const f=factData(num); if(!f) return;
-  let csv='Descripcion,Cantidad,Precio,Total\n';
-  f.items.forEach(i=> csv+=`${i.desc},${i.cant},${i.precio},${(i.cant*i.precio).toFixed(2)}\n`);
-  csv+=`\nSubtotal,, ,${f.sub.toFixed(2)}\nIVU (${f.ivu}%),, ,${f.tax.toFixed(2)}\nTotal,, ,${f.tot.toFixed(2)}\n`;
-  download(`Factura_${f.num}.csv`, csv, 'text/csv');
-}
-function factImprimir(num){
-  const f=factData(num); if(!f) return;
-  const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
-  const cfg=load(K.CFG,{});
-  const html=`
-  <html><head><meta charset="utf-8"><title>Factura ${f.num}</title>
-  <style>
-    body{font-family:${getComputedStyle(document.documentElement).getPropertyValue('--font')}; padding:20px}
-    h1,h2,h3{margin:0}
-    table{width:100%; border-collapse:collapse; margin-top:10px}
-    th,td{border:1px solid #ddd; padding:8px}
-    .right{text-align:right}
-  </style></head><body>
-  <h2>${cfg.name||'Salon Pro'}</h2>
-  <div>${cfg.sub||''}</div>
-  <hr>
-  <h3>Factura #${f.num}</h3>
-  <div>Fecha: ${f.fecha}</div>
-  <div>Cliente: ${f.cli}</div>
-  <div>Tel: ${f.tel||''}</div>
-  <div>Empleado: ${empName(f.emp)}</div>
-  <table>
-    <thead><tr><th>Descripción</th><th>Cant</th><th>Precio</th><th>Total</th></tr></thead>
-    <tbody>
-      ${f.items.map(i=>`<tr><td>${i.desc}</td><td class="right">${i.cant}</td><td class="right">${i.precio.toFixed(2)}</td><td class="right">${(i.cant*i.precio).toFixed(2)}</td></tr>`).join('')}
-    </tbody>
-  </table>
-  <h3 class="right">Subtotal: ${f.sub.toFixed(2)}</h3>
-  <h3 class="right">IVU (${f.ivu}%): ${f.tax.toFixed(2)}</h3>
-  <h2 class="right">Total: ${f.tot.toFixed(2)}</h2>
-  <p>${cfg.waFacto||''}</p>
-  </body></html>`;
-  const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+ const msg = encodeURIComponent(
+   `${cfg.waFacto || 'Gracias por su visita. Detalle:'}\n`+
+   `Factura #${f.num}\n`+
+   `Fecha: ${f.fecha}\n`+
+   `Técnica: ${emp.nombre || ''}\n`+
+   `Total: ${fmtMoney(f.tot)}\n`+
+   (f.notas ? `Propina: ${fmtMoney(f.notas)}\n` : '')+
+   (cfg.maps ? `Ubicación: ${cfg.maps}\n` : '')+
+   `Detalle:\n` + f.items.map(i =>
+     `• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`
+   ).join('\n')
+ );
+
+ if(phone){
+   window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+ } else {
+   alert("No se encontró número de teléfono para la técnica.");
+ }
 }
 
 /* ============================================================
