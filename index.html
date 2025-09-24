@@ -182,8 +182,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </div>
     </div>
   </section>
-
-  <!-- INICIO / MENÚ -->
+ <!-- INICIO / MENÚ -->
   <section id="screen-home" class="screen">
     <div class="row">
       <div class="backline no-print">
@@ -233,8 +232,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       <span class="spacer"></span>
       <button id="btnAgendaImprimir" class="btn-ghost no-print">Imprimir</button>
     </div>
-
-    <div class="card">
+     <div class="card">
       <div class="row cols-4">
         <div><label>Cliente</label><input id="a_nombre" class="input" placeholder="Nombre y apellidos"></div>
         <div><label>Teléfono</label><input id="a_tel" class="input" placeholder="+1 787 000 0000"></div>
@@ -256,8 +254,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <button id="btnAgendaWhatsApp" class="btn-ghost">WhatsApp confirmación</button>
       </div>
     </div>
-
-    <div class="row" style="margin-top:1rem">
+   <div class="row" style="margin-top:1rem">
       <div class="card">
         <div class="toolbar">
           <b>Listado de citas</b>
@@ -277,7 +274,6 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </div>
     </div>
   </section>
-
   <!-- FACTURACIÓN -->
   <section id="screen-facturacion" class="screen">
     <div class="backline">
@@ -286,8 +282,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       <span class="spacer"></span>
       <button id="btnFacturaImprimir" class="btn-ghost no-print">Imprimir</button>
     </div>
-
-    <div class="card">
+      <div class="card">
       <div class="row cols-4">
         <div><label># Factura</label><input id="f_num" class="input" placeholder="AUTOMÁTICO" disabled></div>
         <div><label>Cliente</label><input id="f_cli" class="input" placeholder="Nombre y apellidos"></div>
@@ -344,7 +339,6 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         </div>
       </div>
     </div>
-
     <div class="row" style="margin-top:1rem">
       <div class="card">
         <div class="toolbar">
@@ -366,15 +360,13 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </div>
     </div>
   </section>
-
-  <!-- PANEL ADMINISTRATIVO (antes “Exportaciones”) -->
+ <!-- PANEL ADMINISTRATIVO (antes “Exportaciones”) -->
   <section id="screen-export" class="screen">
     <div class="backline">
       <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
       <h2 style="margin:0">Panel Administrativo</h2>
     </div>
-
-    <!-- Confirmación 24h -->
+   <!-- Confirmación 24h -->
     <div class="card">
       <b>Confirmación de Citas — 24 horas antes</b>
       <div class="row cols-4" style="margin-top:.6rem">
@@ -427,7 +419,6 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <button id="btnExportPrint" class="btn-ghost">Exportar PDF (Imprimir)</button>
       </div>
     </div>
-
     <div class="card" style="margin-top:1rem">
       <b>Vista previa</b>
       <table class="table" id="tblExport">
@@ -436,22 +427,19 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </table>
     </div>
   </section>
-
-  <!-- ANALYTICS -->
+ <!-- ANALYTICS -->
   <section id="screen-analytics" class="screen">
     <div class="backline">
       <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
       <h2 style="margin:0">Análisis de rendimiento</h2>
     </div>
-
-    <div class="kpis">
+      <div class="kpis">
       <div class="kpi"><div class="label">Ingresos (hoy)</div><div class="value" id="kpi_ingresos_hoy">$0</div></div>
       <div class="kpi"><div class="label">Ingresos (mes)</div><div class="value" id="kpi_ingresos_mes">$0</div></div>
       <div class="kpi"><div class="label">Citas (hoy)</div><div class="value" id="kpi_citas_hoy">0</div></div>
       <div class="kpi"><div class="label">No Shows (mes)</div><div class="value" id="kpi_noshow_mes">0</div></div>
     </div>
-
-    <div class="row" style="margin-top:1rem">
+      <div class="row" style="margin-top:1rem">
       <div class="card">
         <div class="toolbar">
           <b>Ingresos diarios (últimos 30 días)</b>
@@ -461,7 +449,6 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </div>
     </div>
   </section>
-
   <!-- EMPLEADOS -->
   <section id="screen-empleados" class="screen">
     <div class="backline">
@@ -481,15 +468,14 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <button id="btnEmpLimpiar" class="btn-ghost">Limpiar</button>
       </div>
     </div>
-    <div class="card" style="margin-top:1rem)">
+    <div class="card" style="margin-top:1rem">
       <table class="table" id="tblEmpleados">
         <thead><tr class="tr"><th>Nombre</th><th>Tel</th><th>Estado</th><th class="no-print">Acciones</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </section>
-
-  <!-- CONFIGURACIÓN -->
+ <!-- CONFIGURACIÓN -->
   <section id="screen-config" class="screen">
     <div class="backline">
       <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
@@ -499,8 +485,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       <label class="small">Importar</label><input id="cfgImport" type="file" accept="application/json" class="input" style="width:auto">
       <button id="btnCfgAplicar" class="btn-primary" style="margin-left:.5rem">Aplicar cambios</button>
     </div>
-
-    <div class="card">
+      <div class="card">
       <b>Branding</b>
       <div class="row cols-4">
         <div><label>Nombre del negocio</label><input id="cfg_name" class="input" placeholder="Salon Pro"></div>
@@ -515,8 +500,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <div><label>Color acento</label><input id="cfg_accent" type="color" class="input" value="#93c5fd"></div>
       </div>
     </div>
-
-    <div class="card" style="margin-top:1rem">
+     <div class="card" style="margin-top:1rem">
       <b>Servicios guardados (para facturación)</b>
       <div class="row cols-3">
         <div><label>Servicio</label><input id="sv_nombre" class="input" placeholder="Corte de cabello"></div>
@@ -545,8 +529,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         </div>
       </div>
     </div>
-
-    <div class="card" style="margin-top:1rem">
+      <div class="card" style="margin-top:1rem">
       <b>WhatsApp / Dirección</b>
       <div class="row cols-3">
         <div><label>Teléfono WhatsApp</label><input id="cfg_wa_phone" class="input" placeholder="+1 787 000 0000"></div>
@@ -555,13 +538,11 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       </div>
     </div>
   </section>
-
-  <!-- FOOTER -->
+ <!-- FOOTER -->
   <footer class="footer">
     <div>© <span id="year"></span> <span id="footerName">Salon Pro</span> — Todos los derechos reservados.</div>
   </footer>
 </main>
-
 <!-- JS APP -->
 <script>
 /* ============================================================
@@ -577,7 +558,6 @@ const K = {
   SVC: 'sp_servicios',
   COUNTER_F: 'sp_fact_counter'
 };
-
 /* ============================================================
   UTILIDADES
   ============================================================= */
@@ -604,7 +584,6 @@ const download = (filename, content, type='text/plain')=>{
   a.href=URL.createObjectURL(new Blob([content],{type}));
   a.download=filename; a.click(); URL.revokeObjectURL(a.href);
 };
-
 /* ============================================================
   ESTADO INICIAL / DEMO USERS
   ============================================================= */
@@ -643,7 +622,6 @@ function ensureDefaults(){
   if(!load(K.CITAS)) save(K.CITAS, []);
   if(!load(K.FACTS)) save(K.FACTS, []);
 }
-
 /* ============================================================
   TEMA / BRAND
   ============================================================= */
@@ -667,7 +645,6 @@ function applyBrand(){
     if(cfg.logo){ el.src = cfg.logo; } else { el.removeAttribute('src'); }
   });
 }
-
 /* ============================================================
   NAVEGACIÓN / SHOW por rol
   ============================================================= */
@@ -681,7 +658,6 @@ function show(id){
     if(ses?.role==='usuario') el.classList.add('hidden'); else el.classList.remove('hidden');
   });
 }
-
 /* ============================================================
   LOGIN
   ============================================================= */
@@ -708,7 +684,6 @@ function logout(){
   localStorage.removeItem(K.SESSION);
   show('screen-login');
 }
-
 /* ============================================================
   EMPLEADOS
   ============================================================= */
@@ -716,17 +691,14 @@ function renderEmpleadosSelects(){
   const emps=load(K.EMP,[]);
   const onlyActive = e => (e.activo === undefined ? true : +e.activo === 1);
   const nameOf = e => e?.nombre || e?.name || '(sin nombre)';
-
-  const targets = ['a_emp','ff_emp','h_emp','ex_emp','f_emp','adm_emp'];
-  targets.forEach(id=>{
+ targets.forEach(id=>{
     const el=byId(id); if(!el) return;
     const placeholder = (id==='a_emp'||id==='ff_emp') ? 'Seleccione' : '';
     const visibles = emps.filter(onlyActive);
     el.innerHTML = `<option value="">${placeholder}</option>` +
       visibles.map(e=>`<option value="${e.id}">${nameOf(e)}</option>`).join('');
   });
-
-  const firstActivo = emps.find(onlyActive);
+ const firstActivo = emps.find(onlyActive);
   if(byId('a_emp') && firstActivo) byId('a_emp').value = firstActivo.id;
   if(byId('ff_emp') && firstActivo) byId('ff_emp').value = firstActivo.id;
 }
@@ -785,16 +757,13 @@ function citaGuardar(){
   const tel=byId('a_tel').value.trim();
   const emp=byId('a_emp').value;
   const srv=byId('a_srv').value.trim();
-
   // Asegura fecha/hora actuales si están vacías
   if(!byId('a_fecha').value) byId('a_fecha').value = todayISO();
   if(!byId('a_hora').value)  byId('a_hora').value  = nowTimeRounded();
-
   const fecha=byId('a_fecha').value;
   const hora=byId('a_hora').value;
   const dur=+byId('a_dur').value||60;
   const notas=byId('a_notas').value.trim();
-
   if(!nombre || !tel || !emp || !fecha || !hora) return alert('Completa nombre, teléfono, empleado, fecha y hora.');
   let citas=load(K.CITAS,[]);
   const cita={id:uuid(), nombre,tel,emp,srv,fecha,hora,dur,notas, estado:'programada'};
@@ -876,7 +845,6 @@ function citaWhatsApp(id){
   const phone = (c.tel || cfg.waPhone || '').replace(/\D/g,'');
   window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');
 }
-
 /* ============================================================
   FACTURACIÓN (líneas, totales, exportar, WhatsApp)
   ============================================================= */
@@ -943,8 +911,7 @@ function facturaNueva(){
 function facturaGuardar(){
   // Fuerza fecha a hoy al guardar
   byId('f_fecha').value = todayISO();
-
-  const num   = byId('f_num').value || nextFacturaNumber();
+ const num   = byId('f_num').value || nextFacturaNumber();
   const cli   = byId('f_cli').value.trim();
   const tel   = byId('f_tel').value.trim();
   const emp   = byId('ff_emp').value;
@@ -952,7 +919,6 @@ function facturaGuardar(){
   const pago  = byId('f_pago').value;
   const ivu   = +byId('f_ivu').value;
   const prop  = +(byId('f_propina').value||0) || 0;
-
   const items = [...$$('#lineas [data-k="desc"]')].map(el=>{
     const id=el.dataset.id;
     const cant  = +byId('lineas').querySelector(`[data-id="${id}"][data-k="cant"]`).value||0;
@@ -960,25 +926,20 @@ function facturaGuardar(){
     return {desc:el.value, cant, precio};
   });
   if(!cli || !fecha || items.length===0) return alert('Cliente, fecha y al menos una línea.');
-
   const sub=items.reduce((a,i)=>a+i.cant*i.precio,0);
   const tax=sub*(ivu/100);
   const tot=sub+tax; // Propina aparte
-
-  let facts=load(K.FACTS,[]);
+ let facts=load(K.FACTS,[]);
   const exists=facts.find(x=>x.num==num);
-
-  const data={
+ const data={
     id:exists?.id||uuid(), num, cli, tel, emp, fecha, pago, ivu,
     propina: prop, notas: prop, // compatibilidad hacia atrás
     items, sub, tax, tot
   };
-
-  const isNew = !exists;
+ const isNew = !exists;
   if(exists){ facts = facts.map(x=> x.num==num? data : x); } else { facts.push(data); }
   save(K.FACTS,facts);
   renderFacturas();
-
   alert('Factura guardada.');
   // Si fue nueva, preparar inmediata siguiente con número autoincrementado
   if(isNew){ facturaNueva(); }
@@ -1014,7 +975,6 @@ function factWA(num){
   const emp  = emps.find(e => e.id === f.emp) || {};
   const phone = (emp.tel || cfg.waPhone || '').replace(/\D/g,'');
   const prop = (typeof f.propina === 'number' ? f.propina : +(f.notas||0)) || 0;
-
   const msg = encodeURIComponent(
     `${cfg.waFacto || 'Gracias por su visita. Detalle:'}\n`+
     `Factura #${f.num}\n`+
@@ -1027,8 +987,7 @@ function factWA(num){
       `• ${i.desc} x${i.cant} = ${fmtMoney(i.cant*i.precio)}`
     ).join('\n')
   );
-
-  if(phone){
+ if(phone){
     window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
   } else {
     alert("No se encontró número de teléfono para la técnica.");
@@ -1062,12 +1021,9 @@ function exportPreview(){
   let {desde,hasta} = per==='rango'
     ? {desde:byId('ex_desde').value, hasta:byId('ex_hasta').value}
     : rango(per, byId('ex_fecha').value||todayISO());
-
   if(!desde||!hasta) { const r=rango('dia', todayISO()); desde=r.desde; hasta=r.hasta; }
-
   const emps=load(K.EMP,[]);
   const empName = id => (emps.find(x=>x.id===id)||{}).nombre || '';
-
   let head=[], rows=[];
   if(tipo==='facturas'){
     let facts=load(K.FACTS,[]).filter(f=>f.fecha>=desde && f.fecha<=hasta);
@@ -1092,12 +1048,10 @@ function exportPreview(){
       c.fecha, c.hora, c.nombre, empName(c.emp), c.srv||'', c.tel, c.estado
     ]);
   }
-
-  byId('exHead').innerHTML = head.map(h=>`<th>${h}</th>`).join('');
+ byId('exHead').innerHTML = head.map(h=>`<th>${h}</th>`).join('');
   byId('exBody').innerHTML = rows
     .map(r=>`<tr class="tr">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`)
     .join('');
-
   return {head, rows, desde, hasta, tipo, emp, empName};
 }
 function exportCSV(){
@@ -1109,20 +1063,17 @@ function exportCSV(){
 }
 function exportPrint(){
   const {head, rows, desde, hasta, tipo, emp, empName}=exportPreview();
-
-  // Totales del periodo (solo para FACTURAS)
+ // Totales del periodo (solo para FACTURAS)
   let propinasHTML = '';
   let totalesHTML  = '';
   if (tipo === 'facturas') {
     const facts = load(K.FACTS,[])
       .filter(f => f.fecha >= desde && f.fecha <= hasta && (!emp || f.emp === emp));
-
-    // Totales contables del periodo
+   // Totales contables del periodo
     const tSub = facts.reduce((a,f)=> a + (Number(f.sub)||0), 0);
     const tIvu = facts.reduce((a,f)=> a + (Number(f.tax)||0), 0);
     const tTot = facts.reduce((a,f)=> a + ((Number(f.sub)||0) + (Number(f.tax)||0)), 0); // ✅ sin propina
-
-    // Totales de propinas por técnica (aparte)
+  // Totales de propinas por técnica (aparte)
     const byTec = {};
     facts.forEach(f=>{
       const tec = empName(f.emp) || '(Sin técnica)';
@@ -1130,8 +1081,7 @@ function exportPrint(){
       byTec[tec] = (byTec[tec]||0) + p;
     });
     const totalProp = Object.values(byTec).reduce((a,b)=>a+b,0);
-
-    totalesHTML = `
+   totalesHTML = `
       <h3 style="margin-top:14px">Totales del período (facturación)</h3>
       <table style="width:100%; border-collapse:collapse; margin-top:6px">
         <tbody>
@@ -1149,8 +1099,7 @@ function exportPrint(){
           </tr>
         </tbody>
       </table>`;
-
-    propinasHTML = `
+   propinasHTML = `
       <h3 style="margin-top:14px">Propinas (aparte, por técnica)</h3>
       <table style="width:100%; border-collapse:collapse; margin-top:6px">
         <thead><tr>
@@ -1170,7 +1119,6 @@ function exportPrint(){
         </tbody>
       </table>`;
   }
-
   const html=`
   <html><head><meta charset="utf-8"><title>Exportación</title>
   <style>
@@ -1189,7 +1137,6 @@ function exportPrint(){
   </body></html>`;
   const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
 }
-
 /* ============================================================
   ANALYTICS (KPIs + chart 30 días)
   ============================================================= */
@@ -1238,7 +1185,6 @@ function analyticsChart30(){
   });
   ctx.strokeStyle='#93c5fd'; ctx.lineWidth=2; ctx.stroke();
 }
-
 /* ============================================================
   GOOGLE FORM
   ============================================================= */
@@ -1339,7 +1285,6 @@ function svEdit(id){
 function svDel(id){
   save(K.SVC, load(K.SVC,[]).filter(x=>x.id!==id)); renderServicios();
 }
-
 /* ============================================================
   CONFIG: cargar/guardar + export/import + Aplicar cambios
   ============================================================= */
@@ -1425,7 +1370,6 @@ function cfgAplicar(){
   renderEmpleadosSelects();
   alert('Cambios aplicados y guardados.');
 }
-
 /* ============================================================
   PANEL ADMINISTRATIVO — Confirmación 24h
   ============================================================= */
@@ -1460,7 +1404,6 @@ function admWhatsAll(){
   const ids = Array.from(byId('adm_tbl').querySelectorAll('[data-wa]')).map(b=>b.getAttribute('data-wa'));
   ids.forEach(id=>citaWhatsApp(id));
 }
-
 /* ============================================================
   EVENTOS UI
   ============================================================= */
@@ -1469,10 +1412,8 @@ function bindUI(){
   byId('btnHome').onclick = ()=>show('screen-home');
   byId('btnConfig').onclick=()=>show('screen-config');
   byId('btnLogout').onclick=()=>{logout();};
-
   // botones de tarjetas
   $$('[data-goto]').forEach(b=> b.onclick=()=> show(b.dataset.goto));
-
   // LOGIN
   byId('doLogin').onclick = ()=>{
     const u = byId('loginUser').value.trim();
@@ -1490,14 +1431,12 @@ function bindUI(){
       if(e.key==='Enter') byId('doLogin').click();
     });
   });
-
   // EMPLEADOS
   byId('btnEmpGuardar')?.addEventListener('click', empSave);
   byId('btnEmpLimpiar')?.addEventListener('click', ()=>{
     byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1';
     delete byId('btnEmpGuardar').dataset.id;
   });
-
   // AGENDA
   byId('btnAgendaGuardar')?.addEventListener('click', citaGuardar);
   byId('btnAgendaNoShow')?.addEventListener('click', citaNoShow);
@@ -1510,7 +1449,6 @@ function bindUI(){
   byId('btnAgendaGoogle')?.addEventListener('click', citaGoogle);
   byId('btnAgendaGoogleTest')?.addEventListener('click', citaGoogleTestOpen);
   byId('btnAgendaImprimir')?.addEventListener('click', ()=>window.print());
-
   // FACTURACIÓN
   byId('btnAddLinea')?.addEventListener('click', ()=>lineaAdd());
   byId('btnLoadServicios')?.addEventListener('click', ()=>renderServicios());
@@ -1520,19 +1458,16 @@ function bindUI(){
   byId('btnFacturaExportPDF')?.addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factImprimir(n); });
   byId('btnFacturaWhatsApp')?.addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factWA(n); });
   byId('btnHistFiltrar')?.addEventListener('click', renderFacturas);
-
   // PANEL ADMINISTRATIVO (confirmación 24h + export)
   byId('adm_base') && (byId('adm_base').value = todayISO());
   byId('adm_aplicar')?.addEventListener('click', admRenderConfirmaciones);
   byId('adm_wa_all')?.addEventListener('click', admWhatsAll);
-
   byId('ex_periodo')?.addEventListener('change', ()=>{
     const isR=byId('ex_periodo').value==='rango';
     byId('ex_rango_wrap').style.display=isR?'grid':'none';
   });
   byId('btnExportCSV')?.addEventListener('click', exportCSV);
   byId('btnExportPrint')?.addEventListener('click', exportPrint);
-
   // SERVICIOS
   byId('btnSvAgregar')?.addEventListener('click', ()=>{
     const id=byId('btnSvAgregar').dataset.id;
@@ -1545,7 +1480,6 @@ function bindUI(){
       svAdd();
     }
   });
-
   // CONFIG (branding + integraciones + aplicar)
   byId('cfg_logo')?.addEventListener('change', onLogoChange);
   byId('cfg_bg')?.addEventListener('change', onBgChange);
@@ -1563,7 +1497,6 @@ function bindUI(){
   byId('cfgImport')?.addEventListener('change', e=>e.target.files[0] && importConfig(e.target.files[0]));
   byId('btnCfgAplicar')?.addEventListener('click', cfgAplicar);
 }
-
 /* ============================================================
   INICIO (boot)
   ============================================================= */
@@ -1588,7 +1521,6 @@ function boot(){
   admRenderConfirmaciones();
 }
 window.addEventListener('DOMContentLoaded', ()=> boot());
-
 /* ============================================================
   PLACEHOLDERS (si aún no los definiste en otro lado)
   ============================================================= */
