@@ -100,15 +100,8 @@ label{display:block; font-size:.9rem; color:var(--muted); margin:.1rem 0 .35rem}
 }
 .screen{display:none}
 .screen.active{display:block; animation:fade .18s ease}
-@keyframes fade{from{opacity:.5; transform:translateY(2px)} to{opacity:1; transform:none)}
-.menu-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:1rem;
-}
-@media (max-width:980px){
-  .menu-grid{ grid-template-columns:1fr; }
-}
+@keyframes fade{from{opacity:.5; transform:translateY(2px)} to{opacity:1; transform:none}}
+.menu-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem}
 .menu-card{display:flex; flex-direction:column; gap:.75rem; padding:1.1rem; border-radius:18px; border:1px solid var(--outline); background:linear-gradient(180deg,#121422,#0d1020)}
 .menu-card h3{margin:0; font-size:1.05rem}
 .menu-card p{margin:0; color:#aeb6d9; font-size:.9rem}
@@ -307,7 +300,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <div><label>Método de pago</label>
           <select id="f_pago" class="input"><option>ATH Móvil</option><option>Tarjeta</option><option>Cash</option></select>
         </div>
-        <div><label>IVU %</label><input id="f_ivu" type="number" class="input" value="0" step=".1" min="0"></div>
+        <div><label>IVU %</label><input id="f_ivu" type="number" class="input" value="11.5" step=".1" min="0"></div>
         <div><label>Propinas</label><input id="f_propina" type="number" step=".01" min="0" class="input" placeholder="0.00" value="0"></div>
       </div>
       <div class="row" style="margin-top:.6rem">
@@ -374,7 +367,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
     </div>
   </section>
 
-  <!-- PANEL ADMINISTRATIVO (antes “Exportaciones”) -->
+  <!-- PANEL ADMINISTRATIVO -->
   <section id="screen-export" class="screen">
     <div class="backline">
       <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
@@ -476,14 +469,7 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
       <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
       <h2 style="margin:0">Empleados / Técnicas</h2>
     </div>
-    <div class="card" style="margin-top:1rem">
-      <table class="table" id="tblEmpleados">
-        <thead><tr class="tr"><th>Nombre</th><th>Tel</th><th>Estado</th><th class="no-print">Acciones</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="card" style="margin-top:1rem">
+    <div class="card">
       <div class="row cols-3">
         <div><label>Nombre</label><input id="e_nombre" class="input" placeholder="Jane Doe"></div>
         <div><label>Teléfono</label><input id="e_tel" class="input" placeholder="+1 787 ..."></div>
@@ -495,6 +481,12 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         <button id="btnEmpGuardar" class="btn-primary">Añadir / Actualizar</button>
         <button id="btnEmpLimpiar" class="btn-ghost">Limpiar</button>
       </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <table class="table" id="tblEmpleados">
+        <thead><tr class="tr"><th>Nombre</th><th>Tel</th><th>Estado</th><th class="no-print">Acciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 
@@ -596,16 +588,6 @@ const $$ = s => document.querySelectorAll(s);
 const byId = id => document.getElementById(id);
 const fmtMoney = n => (Number(n||0)).toLocaleString('es-PR',{style:'currency',currency:'USD'});
 const todayISO = () => new Date().toISOString().slice(0,10);
-/* Hora actual redondeada a 15 min */
-function nowTimeRounded(step=15){
-  const d=new Date();
-  const rawM=d.getMinutes();
-  const m=Math.ceil(rawM/step)*step;
-  if(m===60){ d.setHours(d.getHours()+1); d.setMinutes(0); }
-  else { d.setMinutes(m); }
-  d.setSeconds(0,0);
-  return d.toTimeString().slice(0,5);
-}
 const uuid = () => crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2));
 const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const load = (k,d=null)=>JSON.parse(localStorage.getItem(k)||JSON.stringify(d));
@@ -614,6 +596,13 @@ const download = (filename, content, type='text/plain')=>{
   a.href=URL.createObjectURL(new Blob([content],{type}));
   a.download=filename; a.click(); URL.revokeObjectURL(a.href);
 };
+// CSV seguro (coma, saltos, comillas, e inyección de fórmulas)
+function csvSafe(v){
+  const s = String(v ?? '');
+  const needsQuote = /[",\n]/.test(s) || /^[=+\-@]/.test(s);
+  const esc = s.replace(/"/g,'""');
+  return needsQuote ? `"${esc}"` : esc;
+}
 
 /* ============================================================
   ESTADO INICIAL / DEMO USERS
@@ -693,7 +682,7 @@ function show(id){
 }
 
 /* ============================================================
-  LOGIN
+  LOGIN + Sesión expirable (12h)
   ============================================================= */
 function loginEnsureUsers(){
   let users = load(K.USERS, null);
@@ -714,6 +703,10 @@ function login(user, pass){
   const av=byId('whoami'); if(av) av.title=`${u.user} (${u.role})`;
   return true;
 }
+function isSessionValid(){
+  const s = load(K.SESSION,null);
+  return s && (Date.now() - s.ts) < 12*60*60*1000; // 12h
+}
 function logout(){
   localStorage.removeItem(K.SESSION);
   show('screen-login');
@@ -727,7 +720,7 @@ function renderEmpleadosSelects(){
   const onlyActive = e => (e.activo === undefined ? true : +e.activo === 1);
   const nameOf = e => e?.nombre || e?.name || '(sin nombre)';
 
-  const targets = ['a_emp','ff_emp','h_emp','ex_emp','f_emp','adm_emp'];
+  const targets = ['a_emp','ff_emp','h_emp','ex_emp','adm_emp'];
   targets.forEach(id=>{
     const el=byId(id); if(!el) return;
     const placeholder = (id==='a_emp'||id==='ff_emp') ? 'Seleccione' : '';
@@ -790,29 +783,24 @@ function citaKey(c){ return [c.fecha,c.hora,c.emp,(c.tel||'').replace(/\D/g,'')]
 function citaDuplicada(cita, citas){
   return citas.some(x=>citaKey(x)===citaKey(cita));
 }
-/* Autocompletar/actualizar fecha y hora al guardar */
 function citaGuardar(){
   const nombre=byId('a_nombre').value.trim();
   const tel=byId('a_tel').value.trim();
   const emp=byId('a_emp').value;
   const srv=byId('a_srv').value.trim();
-
-  if(!byId('a_fecha').value) byId('a_fecha').value = todayISO();
-  if(!byId('a_hora').value)  byId('a_hora').value  = nowTimeRounded();
-
   const fecha=byId('a_fecha').value;
   const hora=byId('a_hora').value;
   const dur=+byId('a_dur').value||60;
   const notas=byId('a_notas').value.trim();
-
   if(!nombre || !tel || !emp || !fecha || !hora) return alert('Completa nombre, teléfono, empleado, fecha y hora.');
   let citas=load(K.CITAS,[]);
   const cita={id:uuid(), nombre,tel,emp,srv,fecha,hora,dur,notas, estado:'programada'};
   if(citaDuplicada(cita,citas)) return alert('Duplicado: ya existe cita con esa persona a esa hora.');
   citas.push(cita); save(K.CITAS,citas);
+  // Refresco automático
   renderCitas();
-  byId('a_fecha').value = todayISO();
-  byId('a_hora').value  = nowTimeRounded();
+  analyticsKPIs();
+  admRenderConfirmaciones();
   alert('Cita guardada.');
 }
 function citaNoShow(){
@@ -825,7 +813,7 @@ function citaNoShow(){
     if(c.nombre===nombre && c.tel===tel && c.fecha===fecha && c.hora===hora){ return {...c, estado:'no-show'}; }
     return c;
   });
-  save(K.CITAS,citas); renderCitas(); alert('Marcado como No Show (si coincidía).');
+  save(K.CITAS,citas); renderCitas(); analyticsKPIs(); alert('Marcado como No Show (si coincidía).');
 }
 function renderCitas(filter=true){
   const tb=byId('tblCitas').querySelector('tbody');
@@ -868,7 +856,7 @@ function citaEditar(id){
 }
 function citaBorrar(id){
   save(K.CITAS, load(K.CITAS,[]).filter(x=>x.id!==id));
-  renderCitas();
+  renderCitas(); analyticsKPIs(); admRenderConfirmaciones();
 }
 function citaWhatsApp(id){
   const cfg=load(K.CFG,{});
@@ -908,7 +896,7 @@ function recalcFactura(){
   const rows=[...$$('#lineas [data-k="cant"]')].map(el=>{
     const id=el.dataset.id;
     const cant=+el.value||0;
-    const precio=+byId(`lineas`).querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
+    const precio=+byId('lineas').querySelector(`[data-id="${id}"][data-k="precio"]`).value||0;
     const tot=cant*precio;
     byId('lineas').querySelector(`[data-id="${id}"][data-k="total"]`).value=fmtMoney(tot);
     return tot;
@@ -943,13 +931,10 @@ function facturaNueva(){
   byId('f_fecha').value = todayISO();
   byId('f_propina').value = 0;
   byId('f_pago').value='ATH Móvil';
-  byId('f_ivu').value = 0;
   byId('lineas').innerHTML='';
   recalcFactura();
 }
 function facturaGuardar(){
-  byId('f_fecha').value = todayISO();
-
   const num   = byId('f_num').value || nextFacturaNumber();
   const cli   = byId('f_cli').value.trim();
   const tel   = byId('f_tel').value.trim();
@@ -969,24 +954,30 @@ function facturaGuardar(){
 
   const sub=items.reduce((a,i)=>a+i.cant*i.precio,0);
   const tax=sub*(ivu/100);
-  const tot=sub+tax;
+  const tot=sub+tax; // Propina aparte
 
   let facts=load(K.FACTS,[]);
   const exists=facts.find(x=>x.num==num);
 
   const data={
     id:exists?.id||uuid(), num, cli, tel, emp, fecha, pago, ivu,
-    propina: prop, notas: prop, // compatibilidad hacia atrás
+    propina: prop, // ← guardar propina limpio
+    // 'notas' solo si existía antes, para no romper legados:
+    notas: exists ? (exists.notas ?? '') : '',
     items, sub, tax, tot
   };
 
-  const isNew = !exists;
-  if(exists){ facts = facts.map(x=> x.num==num? data : x); } else { facts.push(data); }
+  facts = exists ? facts.map(x=> x.num==num? data : x) : [...facts, data];
   save(K.FACTS,facts);
-  renderFacturas();
 
+  // Refresco automático
+  renderFacturas();
+  analyticsKPIs();
+  analyticsChart30();
   alert('Factura guardada.');
-  if(isNew){ facturaNueva(); }
+
+  // Preparar siguiente factura
+  facturaNueva();
 }
 function renderFacturas(){
   const tb=byId('tblFacturas').querySelector('tbody');
@@ -1010,7 +1001,7 @@ function renderFacturas(){
     </tr>`).join('');
 }
 function factData(num){ return load(K.FACTS,[]).find(f=>f.num==num); }
-function factDel(num){ save(K.FACTS, load(K.FACTS,[]).filter(f=>f.num!=num)); renderFacturas(); }
+function factDel(num){ save(K.FACTS, load(K.FACTS,[]).filter(f=>f.num!=num)); renderFacturas(); analyticsKPIs(); analyticsChart30(); }
 function factWA(num){
   const cfg = load(K.CFG,{});
   const f = factData(num);
@@ -1018,7 +1009,7 @@ function factWA(num){
   const emps = load(K.EMP,[]);
   const emp  = emps.find(e => e.id === f.emp) || {};
   const phone = (emp.tel || cfg.waPhone || '').replace(/\D/g,'');
-  const prop = (typeof f.propina === 'number' ? f.propina : +(f.notas||0)) || 0;
+  const prop = Number.isFinite(f.propina) ? f.propina : (+(f.notas||0) || 0); // lee legado
 
   const msg = encodeURIComponent(
     `${cfg.waFacto || 'Gracias por su visita. Detalle:'}\n`+
@@ -1081,7 +1072,7 @@ function exportPreview(){
     head=['#','Fecha','Cliente','Empleado','Método','Subtotal','IVU','Total','Propina'];
     rows=facts.map(f=>{
       const totalSinProp = (Number(f.sub)||0) + (Number(f.tax)||0);
-      const prop = (typeof f.propina==='number' ? Number(f.propina) : Number(f.notas||0)) || 0;
+      const prop = Number.isFinite(f.propina) ? Number(f.propina) : (+(f.notas||0) || 0);
       return [
         f.num, f.fecha, f.cli, empName(f.emp), f.pago,
         (Number(f.sub)||0).toFixed(2),
@@ -1108,28 +1099,31 @@ function exportPreview(){
 }
 function exportCSV(){
   const {head, rows, desde, hasta, tipo}=exportPreview();
-  let csv=head.join(',')+'\n';
-  rows.forEach(r=> csv+=r.join(',')+'\n');
+  let csv=head.map(csvSafe).join(',')+'\n';
+  rows.forEach(r=> csv+=r.map(csvSafe).join(',')+'\n');
   const suf = tipo==='facturas'?'FACTURAS':'CITAS';
   download(`${suf}_${desde}_a_${hasta}.csv`, csv, 'text/csv');
 }
 function exportPrint(){
   const {head, rows, desde, hasta, tipo, emp, empName}=exportPreview();
 
+  // Totales del periodo (solo para FACTURAS)
   let propinasHTML = '';
   let totalesHTML  = '';
   if (tipo === 'facturas') {
     const facts = load(K.FACTS,[])
       .filter(f => f.fecha >= desde && f.fecha <= hasta && (!emp || f.emp === emp));
 
+    // Totales contables del periodo (sin propina)
     const tSub = facts.reduce((a,f)=> a + (Number(f.sub)||0), 0);
     const tIvu = facts.reduce((a,f)=> a + (Number(f.tax)||0), 0);
     const tTot = facts.reduce((a,f)=> a + ((Number(f.sub)||0) + (Number(f.tax)||0)), 0);
 
+    // Totales de propinas por técnica (aparte)
     const byTec = {};
     facts.forEach(f=>{
       const tec = empName(f.emp) || '(Sin técnica)';
-      const p = (typeof f.propina==='number' ? f.propina : +(f.notas||0)) || 0;
+      const p = Number.isFinite(f.propina) ? f.propina : (+(f.notas||0) || 0);
       byTec[tec] = (byTec[tec]||0) + p;
     });
     const totalProp = Object.values(byTec).reduce((a,b)=>a+b,0);
@@ -1288,7 +1282,7 @@ function citaGoogleTestOpen(){
   const emp=byId('a_emp').value;
   const srv=byId('a_srv').value.trim()||'Servicio Prueba';
   const fechaISO=byId('a_fecha').value||todayISO();
-  const hora24=byId('a_hora').value||nowTimeRounded();
+  const hora24=byId('a_hora').value||'08:00';
   const emps=load(K.EMP,[]); const empName=(emps.find(e=>e.id===emp)||{}).nombre||'Técnica';
   const fechaForm = toMMDDYYYY(fechaISO);
   const qp = new URLSearchParams({
@@ -1404,6 +1398,7 @@ function importConfig(file){
       if(j.facturas) save(K.FACTS,j.facturas);
       if(j.users) save(K.USERS,j.users);
       applyBrand(); renderEmpleadosSelects(); renderEmpleadosTabla(); renderServicios(); renderCitas(); renderFacturas();
+      analyticsKPIs(); analyticsChart30(); admRenderConfirmaciones();
       alert('Configuración importada.');
     }catch(e){ alert('Archivo inválido.'); }
   };
@@ -1455,25 +1450,43 @@ function admRenderConfirmaciones(){
       <td class="no-print"><button class="btn-ghost" data-wa="${c.id}">WhatsApp</button></td>
     </tr>`;
   }).join('');
+  // listeners WA
   tb.querySelectorAll('[data-wa]').forEach(b=>{
     b.addEventListener('click', ()=>citaWhatsApp(b.getAttribute('data-wa')));
   });
 }
+// Enviar WA masivo como lista de enlaces (evita bloqueos de popups)
 function admWhatsAll(){
   const ids = Array.from(byId('adm_tbl').querySelectorAll('[data-wa]')).map(b=>b.getAttribute('data-wa'));
-  ids.forEach(id=>citaWhatsApp(id));
+  const cfg=load(K.CFG,{});
+  const emps=load(K.EMP,[]);
+  const empName=id=>(emps.find(e=>e.id===id)||{}).nombre||'';
+  const links = ids.map(id=>{
+    const c=load(K.CITAS,[]).find(x=>x.id===id);
+    if(!c) return '';
+    const fechaTxt=new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleString('es-PR');
+    const msg = encodeURIComponent(`Hola ${c.nombre}, confirmación de su cita:\n🗓 ${fechaTxt}\n👤 Técnica: ${empName(c.emp)}\n💈 Servicio: ${c.srv||'-'}\n${cfg.maps? '📍 Ubicación: '+cfg.maps+'\n':''}Responda para confirmar. ¡Gracias!`);
+    const phone = (c.tel || cfg.waPhone || '').replace(/\D/g,'');
+    return `https://wa.me/${phone}?text=${msg}`;
+  }).filter(Boolean);
+  const w = window.open('', '_blank');
+  w.document.write('<h3>WhatsApp — Abrir manualmente</h3><ul style="font-family:sans-serif">' + links.map(u=>`<li><a href="${u}" target="_blank" rel="noopener">Abrir chat</a></li>`).join('') + '</ul>');
+  w.document.close();
 }
 
 /* ============================================================
   EVENTOS UI
   ============================================================= */
 function bindUI(){
+  // navegación topbar
   byId('btnHome').onclick = ()=>show('screen-home');
   byId('btnConfig').onclick=()=>show('screen-config');
   byId('btnLogout').onclick=()=>{logout();};
 
+  // botones de tarjetas
   $$('[data-goto]').forEach(b=> b.onclick=()=> show(b.dataset.goto));
 
+  // LOGIN
   byId('doLogin').onclick = ()=>{
     const u = byId('loginUser').value.trim();
     const p = byId('loginPass').value.trim();
@@ -1491,17 +1504,27 @@ function bindUI(){
     });
   });
 
+  // Normalización básica de teléfonos
+  ;['a_tel','f_tel','e_tel','cfg_wa_phone'].forEach(id=>{
+    const el=byId(id); if(!el) return;
+    el.addEventListener('input', e=>{
+      e.target.value = e.target.value.replace(/[^\d+ ]/g,'');
+    });
+  });
+
+  // EMPLEADOS
   byId('btnEmpGuardar')?.addEventListener('click', empSave);
   byId('btnEmpLimpiar')?.addEventListener('click', ()=>{
     byId('e_nombre').value=''; byId('e_tel').value=''; byId('e_activo').value='1';
     delete byId('btnEmpGuardar').dataset.id;
   });
 
+  // AGENDA
   byId('btnAgendaGuardar')?.addEventListener('click', citaGuardar);
   byId('btnAgendaNoShow')?.addEventListener('click', citaNoShow);
   byId('btnAgendaFiltrar')?.addEventListener('click', ()=>renderCitas(true));
   byId('btnAgendaWhatsApp')?.addEventListener('click', ()=>{
-    const temp={id:'temp', nombre:byId('a_nombre').value, tel:byId('a_tel').value, emp:byId('a_emp').value, srv:byId('a_srv').value, fecha:byId('a_fecha').value||todayISO(), hora:byId('a_hora').value||nowTimeRounded(), notas:byId('a_notas').value};
+    const temp={id:'temp', nombre:byId('a_nombre').value, tel:byId('a_tel').value, emp:byId('a_emp').value, srv:byId('a_srv').value, fecha:byId('a_fecha').value, hora:byId('a_hora').value, notas:byId('a_notas').value};
     load(K.CITAS,[]).push(temp); save(K.CITAS,load(K.CITAS,[])); citaWhatsApp('temp');
     save(K.CITAS, load(K.CITAS,[]).filter(x=>x.id!=='temp'));
   });
@@ -1509,6 +1532,7 @@ function bindUI(){
   byId('btnAgendaGoogleTest')?.addEventListener('click', citaGoogleTestOpen);
   byId('btnAgendaImprimir')?.addEventListener('click', ()=>window.print());
 
+  // FACTURACIÓN
   byId('btnAddLinea')?.addEventListener('click', ()=>lineaAdd());
   byId('btnLoadServicios')?.addEventListener('click', ()=>renderServicios());
   byId('f_ivu')?.addEventListener('input', recalcFactura);
@@ -1518,6 +1542,7 @@ function bindUI(){
   byId('btnFacturaWhatsApp')?.addEventListener('click', ()=>{ const n=byId('f_num').value; if(!n) return alert('Guarda primero.'); factWA(n); });
   byId('btnHistFiltrar')?.addEventListener('click', renderFacturas);
 
+  // PANEL ADMINISTRATIVO (confirmación 24h + export)
   byId('adm_base') && (byId('adm_base').value = todayISO());
   byId('adm_aplicar')?.addEventListener('click', admRenderConfirmaciones);
   byId('adm_wa_all')?.addEventListener('click', admWhatsAll);
@@ -1529,6 +1554,7 @@ function bindUI(){
   byId('btnExportCSV')?.addEventListener('click', exportCSV);
   byId('btnExportPrint')?.addEventListener('click', exportPrint);
 
+  // SERVICIOS
   byId('btnSvAgregar')?.addEventListener('click', ()=>{
     const id=byId('btnSvAgregar').dataset.id;
     if(id){
@@ -1541,6 +1567,7 @@ function bindUI(){
     }
   });
 
+  // CONFIG (branding + integraciones + aplicar)
   byId('cfg_logo')?.addEventListener('change', onLogoChange);
   byId('cfg_bg')?.addEventListener('change', onBgChange);
   byId('cfg_name')?.addEventListener('input',  e=>cfgSave({name:e.target.value}));
@@ -1568,37 +1595,38 @@ function boot(){
   renderEmpleadosSelects();
   renderServicios();
   byId('a_fecha').value = todayISO();
-  byId('a_hora').value  = nowTimeRounded();
   byId('f_fecha').value = todayISO();
   renderCitas();
   renderFacturas();
   facturaNueva();
   const ses=load(K.SESSION,null);
-  if(ses){ byId('whoami').title=`${ses.user} (${ses.role})`; show('screen-home'); }
-  else show('screen-login');
+  if(ses && isSessionValid()){ byId('whoami').title=`${ses.user} (${ses.role})`; show('screen-home'); }
+  else { logout(); }
   analyticsKPIs(); analyticsChart30();
   bindUI();
+  // Inicializa panel admin (confirmación 24h preview)
   admRenderConfirmaciones();
 }
 window.addEventListener('DOMContentLoaded', ()=> boot());
 
 /* ============================================================
-  PLACEHOLDERS
+  PLACEHOLDERS actualizados (CSV seguro + legado propina)
   ============================================================= */
 function factCSV(num){
   const f=factData(num); if(!f) return alert('No existe la factura.');
   const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
+  const prop = Number.isFinite(f.propina) ? f.propina : (+(f.notas||0) || 0);
   const rows=[
     ['#','Fecha','Cliente','Empleado','Método','Subtotal','IVU','Total','Propina'],
-    [f.num,f.fecha,f.cli,empName(f.emp),f.pago,f.sub,f.tax,f.tot,(typeof f.propina==='number'?f.propina:+(f.notas||0))||0]
+    [f.num,f.fecha,f.cli,empName(f.emp),f.pago,f.sub,f.tax,f.tot,prop]
   ];
-  const csv = rows.map(r=>r.join(',')).join('\n');
+  let csv = rows.map(r=>r.map(csvSafe).join(',')).join('\n');
   download(`factura_${f.num}.csv`, csv, 'text/csv');
 }
 function factImprimir(num){
   const f=factData(num); if(!f) return alert('No existe la factura.');
   const emps=load(K.EMP,[]); const empName=id=>(emps.find(x=>x.id===id)||{}).nombre||'';
-  const prop = (typeof f.propina==='number'?f.propina:+(f.notas||0))||0;
+  const prop = Number.isFinite(f.propina) ? f.propina : (+(f.notas||0) || 0);
   const html=`
   <html><head><meta charset="utf-8"><title>Factura ${f.num}</title>
   <style>body{font-family:system-ui; padding:20px} table{width:100%; border-collapse:collapse} th,td{border:1px solid #ddd; padding:6px}</style>
@@ -1620,3 +1648,4 @@ function factImprimir(num){
 </script>
 </body>
 </html>
+
