@@ -55,6 +55,7 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
             <button id="btnPDF" class="btn-primary">Reporte PDF bonito</button>
             <button id="btnCSV" class="btn-ghost">Exportar CSV</button>
             <button id="btnBackup" class="btn-ghost">Backup JSON</button>
+            <button id="btnCierre" class="btn-ghost">Cerrar caja</button>
             <input id="backupImport" type="file" accept="application/json" class="input" style="display:none">
           </div>
         </div>
@@ -187,6 +188,32 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
         <table class="table" style="margin-top:.6rem">
           <thead><tr class="tr"><th>Fecha</th><th>Tipo</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
           <tbody id="tbMovs"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detalle ventas/gastos -->
+    <div class="row cols-2" style="margin-top:1rem">
+      <div class="card">
+        <b>Ventas del período</b>
+        <table class="table">
+          <thead><tr class="tr"><th>#</th><th>Fecha</th><th>Técnica</th><th>Método</th><th>Subtotal</th><th>IVU</th><th>Total</th><th>Propina</th></tr></thead>
+          <tbody id="tbVentas"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:.6rem"><b>Gastos del período</b><span class="badge no-print">Local: sp_gastos</span></div>
+        <div class="row cols-3 no-print" style="margin-top:.6rem">
+          <div><label>Concepto</label><input id="g_concepto" class="input" placeholder="Renta, insumos, etc."></div>
+          <div><label>Fecha</label><input id="g_fecha" type="date" class="input"></div>
+          <div><label>Monto</label><input id="g_monto" type="number" step=".01" class="input" placeholder="0.00"></div>
+        </div>
+        <div class="actions no-print" style="margin-top:.6rem">
+          <button id="btnGAdd" class="btn-primary">Añadir gasto</button>
+        </div>
+        <table class="table" style="margin-top:.6rem">
+          <thead><tr class="tr"><th>Fecha</th><th>Concepto</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
+          <tbody id="tbGastos"></tbody>
         </table>
       </div>
     </div>
@@ -596,12 +623,66 @@ function setPeriodoMes(){
   byId('f_desde').value=desde; byId('f_hasta').value=hasta;
 }
 function setPeriodoRango(){}
+/* ====== Cierre de caja ====== */
+function isSameDay(desde, hasta){ return desde && hasta && desde === hasta; }
+function isFullMonth(desde, hasta){
+  if(!desde || !hasta) return false;
+  const d = new Date(desde+'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  const first = new Date(y, m, 1).toISOString().slice(0,10);
+  const last  = new Date(y, m+1, 0).toISOString().slice(0,10);
+  return (desde === first && hasta === last);
+}
+function nextDayISO(iso){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
+function nextMonthRangeFrom(desdeISO){
+  const d = new Date(desdeISO+'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  const firstNext = new Date(y, m+1, 1).toISOString().slice(0,10);
+  const lastNext  = new Date(y, m+2, 0).toISOString().slice(0,10);
+  return {desde:firstNext, hasta:lastNext};
+}
+function cerrarCaja(){
+  const desde = byId('f_desde').value;
+  const hasta = byId('f_hasta').value;
+  const emp   = byId('f_emp').value;
+  const ip    = byId('f_propinas').value === '1';
+  const saldo = parseFloat(byId('f_saldo').value||'0')||0;
+
+  const res = compute(desde, hasta, emp, ip, saldo);
+
+  const ok = confirm(
+    `Se guardará la Caja Final (${fmt(res.cajaFinal)}) como nuevo Saldo inicial.\n` +
+    (isSameDay(desde,hasta) ? 'El período avanzará al día siguiente.' :
+     isFullMonth(desde,hasta) ? 'El período avanzará al mes siguiente.' :
+     'El período se mantendrá como está.') +
+    `\n\n¿Continuar?`
+  );
+  if(!ok) return;
+
+  // Actualiza saldo inicial
+  const prev = load(K.CFGCF,{propinas:0, saldo:0});
+  save(K.CFGCF, {...prev, saldo: res.cajaFinal});
+
+  // Avanza período cuando aplica
+  if(isSameDay(desde,hasta)){
+    const nd = nextDayISO(desde);
+    byId('f_desde').value = nd;
+    byId('f_hasta').value = nd;
+  }else if(isFullMonth(desde,hasta)){
+    const nx = nextMonthRangeFrom(desde);
+    byId('f_desde').value = nx.desde;
+    byId('f_hasta').value = nx.hasta;
+  }
+
+  aplicar();
+  alert('Cierre realizado. El Saldo inicial fue actualizado con la Caja Final.');
+}
 /* ====== Acciones principales ====== */
 function aplicar(){
   const desde=byId('f_desde').value, hasta=byId('f_hasta').value, emp=byId('f_emp').value;
   const incluirPropinas = byId('f_propinas').value==='1';
   const saldo = parseFloat(byId('f_saldo').value||'0')||0;
-  const metodo = byId('f_metodo').value;
+  const metodo = byId('f_metodo')?.value || '';
 
   // persistir preferencia
   const prev=load(K.CFGCF,{});
@@ -643,6 +724,7 @@ function boot(){
   byId('btnRango').onclick=()=>{setPeriodoRango();};
   byId('btnPDF').onclick=pdfReport;
   byId('btnCSV').onclick=exportCSV;
+  byId('btnCierre').onclick=cerrarCaja;
   byId('btnAplicar').onclick=aplicar;
   byId('btnReset').onclick=()=>{ setPeriodoMes(); byId('f_emp').value=''; byId('f_propinas').value='0'; byId('f_saldo').value = 0; byId('f_metodo').value=''; aplicar(); };
   byId('btnGAdd').onclick=addGasto;
@@ -665,5 +747,4 @@ window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
-
 
