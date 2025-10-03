@@ -281,12 +281,28 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
 
   <!-- FACTURACIÓN -->
   <section id="screen-facturacion" class="screen">
-    <div class="backline">
-      <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
-      <h2 style="margin:0">Facturación</h2>
-      <span class="spacer"></span>
-      <button id="btnFacturaImprimir" class="btn-ghost no-print">Imprimir</button>
-    </div>
+  <div class="backline">
+    <button class="btn-ghost" data-goto="screen-home">← Regresar</button>
+    <h2 style="margin:0">Facturación</h2>
+    <span class="spacer"></span>
+    <button id="btnFacturaImprimir" class="btn-ghost no-print">Imprimir</button>
+  </div>
+
+  <!-- SUBTABS -->
+  <style>
+    .subtabs{display:flex; gap:.5rem; flex-wrap:wrap; border-bottom:1px solid var(--outline); padding-bottom:.6rem; margin-bottom:1rem}
+    .subtab{background:transparent; border:1px solid var(--outline); padding:.55rem .9rem; border-radius:999px; cursor:pointer}
+    .subtab.active{background:linear-gradient(135deg,var(--primary),var(--accent)); color:#000; border-color:transparent}
+    .subsection{display:none}
+    .subsection.active{display:block}
+  </style>
+  <div class="subtabs no-print">
+    <button class="subtab active" id="cf_tab_facturar">Facturar</button>
+    <button class="subtab" id="cf_tab_flujo">Flujo de Caja</button>
+  </div>
+
+  <!-- =================== SUBTAB: FACTURAR (TU ORIGINAL) =================== -->
+  <div id="cf_view_facturar" class="subsection active">
 
     <div class="card">
       <div class="row cols-4">
@@ -365,7 +381,163 @@ hr.sep{border:0; height:1px; background:linear-gradient(90deg, transparent, #283
         </table>
       </div>
     </div>
-  </section>
+
+  </div>
+  <!-- =================== /SUBTAB FACTURAR =================== -->
+
+  <!-- =================== SUBTAB: FLUJO DE CAJA =================== -->
+  <div id="cf_view_flujo" class="subsection">
+
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap">
+        <b>Panel de control — Flujo de Caja</b>
+        <div class="actions" style="margin-left:auto">
+          <button id="cf_btnHoy" class="btn-ghost">Hoy</button>
+          <button id="cf_btnMes" class="btn-ghost">Mes</button>
+          <button id="cf_btnRango" class="btn-ghost">Rango</button>
+          <button id="cf_btnPDF" class="btn-primary">Reporte PDF</button>
+          <button id="cf_btnCSV" class="btn-ghost">Exportar CSV</button>
+        </div>
+      </div>
+      <p class="help">Lee ventas de <code>sp_facturas</code>. Guarda gastos en <code>sp_gastos</code> y movimientos en <code>sp_cf_movs</code>.</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card" style="margin-top:1rem">
+      <div class="row cols-4">
+        <div><label>Desde</label><input id="cf_desde" type="date" class="input"></div>
+        <div><label>Hasta</label><input id="cf_hasta" type="date" class="input"></div>
+        <div>
+          <label>Empleado/Técnica</label>
+          <select id="cf_emp" class="input"></select>
+        </div>
+        <div>
+          <label>Incluir propinas en caja</label>
+          <select id="cf_propinas" class="input">
+            <option value="0">No (solo ventas)</option>
+            <option value="1">Sí (sumar propinas)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row cols-4" style="margin-top:.6rem">
+        <div><label>Saldo inicial de caja</label><input id="cf_saldo" type="number" step=".01" class="input" placeholder="0.00"></div>
+        <div class="actions" style="align-items:end">
+          <button id="cf_btnAplicar" class="btn-primary">Aplicar</button>
+          <button id="cf_btnReset" class="btn-ghost">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpis" style="margin-top:1rem">
+      <div class="kpi"><div class="label">Ingresos</div><div class="value" id="cf_kpi_ingresos">$0</div></div>
+      <div class="kpi"><div class="label">Propinas</div><div class="value" id="cf_kpi_propinas">$0</div></div>
+      <div class="kpi"><div class="label">Gastos</div><div class="value" id="cf_kpi_gastos">$0</div></div>
+      <div class="kpi"><div class="label">Caja Inicial</div><div class="value" id="cf_kpi_inicial">$0</div></div>
+      <div class="kpi"><div class="label">Flujo Neto</div><div class="value" id="cf_kpi_neto">$0</div></div>
+      <div class="kpi"><div class="label">Caja Final</div><div class="value" id="cf_kpi_final">$0</div></div>
+    </div>
+
+    <!-- Gráfica -->
+    <div class="card" style="margin-top:1rem">
+      <div style="display:flex; align-items:center">
+        <b>Flujo diario (ingresos - gastos)</b>
+        <span style="margin-left:auto; color:#a9b2dc; font-size:.9rem">Canvas sin librerías</span>
+      </div>
+      <canvas id="cf_chart" height="190" style="width:100%"></canvas>
+    </div>
+
+    <!-- Caja por método -->
+    <div class="card" style="margin-top:1rem">
+      <b>Caja por método de pago</b>
+      <table class="table">
+        <thead><tr class="tr"><th>Método</th><th>Monto</th><th>% Ingresos</th></tr></thead>
+        <tbody id="cf_tbMetodos"></tbody>
+      </table>
+    </div>
+
+    <!-- Resumen por técnica -->
+    <div class="card" style="margin-top:1rem">
+      <b>Resumen por técnica</b>
+      <table class="table">
+        <thead><tr class="tr"><th>Técnica</th><th>Ventas</th><th>Propinas</th></tr></thead>
+        <tbody id="cf_tbTecnicas"></tbody>
+      </table>
+    </div>
+
+    <!-- Resumen diario -->
+    <div class="card" style="margin-top:1rem">
+      <div style="display:flex; align-items:center; gap:.6rem">
+        <b>Resumen diario</b>
+        <div class="actions no-print" style="margin-left:auto">
+          <label class="small">Filtrar método:</label>
+          <select id="cf_metodo" class="input" style="width:auto">
+            <option value="">Todos</option>
+            <option>ATH Móvil</option>
+            <option>Tarjeta</option>
+            <option>Cash</option>
+          </select>
+        </div>
+      </div>
+      <table class="table" style="margin-top:.6rem">
+        <thead><tr class="tr"><th>Fecha</th><th>Ventas</th><th>Propinas</th><th>Gastos</th><th>Neto</th></tr></thead>
+        <tbody id="cf_tbDiario"></tbody>
+      </table>
+    </div>
+
+    <!-- Movimientos (retiros/depósitos) -->
+    <div class="card" style="margin-top:1rem">
+      <div style="display:flex; align-items:center; gap:.6rem">
+        <b>Movimientos de caja (retiros/depósitos)</b>
+        <span class="badge no-print">Ajustan la caja final</span>
+      </div>
+      <div class="row cols-3 no-print" style="margin-top:.6rem">
+        <div><label>Tipo</label><select id="cf_m_tipo" class="input"><option>Retiro</option><option>Depósito</option></select></div>
+        <div><label>Fecha</label><input id="cf_m_fecha" type="date" class="input"></div>
+        <div><label>Monto</label><input id="cf_m_monto" type="number" step=".01" class="input" placeholder="0.00"></div>
+      </div>
+      <div class="actions no-print" style="margin-top:.6rem">
+        <button id="cf_btnMAdd" class="btn-primary">Añadir movimiento</button>
+      </div>
+      <table class="table" style="margin-top:.6rem">
+        <thead><tr class="tr"><th>Fecha</th><th>Tipo</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
+        <tbody id="cf_tbMovs"></tbody>
+      </table>
+    </div>
+
+    <!-- Detalle ventas / gastos -->
+    <div class="row cols-2" style="margin-top:1rem">
+      <div class="card">
+        <b>Ventas del período</b>
+        <table class="table">
+          <thead><tr class="tr"><th>#</th><th>Fecha</th><th>Técnica</th><th>Método</th><th>Subtotal</th><th>IVU</th><th>Total</th><th>Propina</th></tr></thead>
+        <tbody id="cf_tbVentas"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:.6rem">
+          <b>Gastos del período</b><span class="badge no-print">Local: sp_gastos</span>
+        </div>
+        <div class="row cols-3 no-print" style="margin-top:.6rem">
+          <div><label>Concepto</label><input id="cf_g_concepto" class="input" placeholder="Renta, insumos, etc."></div>
+          <div><label>Fecha</label><input id="cf_g_fecha" type="date" class="input"></div>
+          <div><label>Monto</label><input id="cf_g_monto" type="number" step=".01" class="input" placeholder="0.00"></div>
+        </div>
+        <div class="actions no-print" style="margin-top:.6rem">
+          <button id="cf_btnGAdd" class="btn-primary">Añadir gasto</button>
+        </div>
+        <table class="table" style="margin-top:.6rem">
+          <thead><tr class="tr"><th>Fecha</th><th>Concepto</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
+          <tbody id="cf_tbGastos"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <!-- =================== /SUBTAB FLUJO =================== -->
+
+</section>
+
 
   <!-- PANEL ADMINISTRATIVO -->
   <section id="screen-export" class="screen">
@@ -1645,6 +1817,426 @@ function factImprimir(num){
   </body></html>`;
   const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
 }
+</script>
+   <script>
+/* ============================================================
+   FLUJO DE CAJA (integrado en Facturación)
+   ============================================================= */
+(function(){
+  const CFK = {
+    FACTS: 'sp_facturas',
+    EMP: 'sp_empleados',
+    GASTOS: 'sp_gastos',
+    MOVS: 'sp_cf_movs',
+    CFG: 'sp_cf_cfg'
+  };
+
+  const byId = id => document.getElementById(id);
+  const load = (k,d=null)=>JSON.parse(localStorage.getItem(k)||JSON.stringify(d));
+  const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const todayISO = ()=>new Date().toISOString().slice(0,10);
+  const fmt = n => (Number(n||0)).toLocaleString('es-PR',{style:'currency',currency:'USD'});
+  const csvSafe = v => {
+    const s=String(v??''); const needs=/[",\n]/.test(s)||/^[=+\-@]/.test(s);
+    return needs?`"${s.replace(/"/g,'""')}"`:s;
+  };
+  const toNum = v => {
+    if(v===null||v===undefined) return 0;
+    if(typeof v==='number') return Number.isFinite(v)?v:0;
+    const s=String(v).trim(); if(!s) return 0;
+    const n=parseFloat(s.replace(/[^\d,.\-]/g,'').replace(',', '.'));
+    return Number.isFinite(n)?n:0;
+  };
+
+  function cf_ensureStores(){
+    if(!load(CFK.GASTOS)) save(CFK.GASTOS,[]);
+    if(!load(CFK.MOVS)) save(CFK.MOVS,[]);
+    if(!load(CFK.CFG)) save(CFK.CFG,{propinas:0, saldo:0});
+  }
+
+  function cf_empName(id){
+    const emps=load(CFK.EMP,[])||[];
+    return (emps.find(e=>e.id===id)||{}).nombre||'';
+  }
+  function cf_fillEmps(includeAll){
+    const sel=byId('cf_emp'); if(!sel) return;
+    const emps=(load(CFK.EMP,[])||[]).filter(e=>(e.activo===undefined?true:+e.activo===1));
+    sel.innerHTML = (includeAll?`<option value="">Todas</option>`:'') +
+      emps.map(e=>`<option value="${e.id}">${e.nombre||'(Sin nombre)'}</option>`).join('');
+    sel.value = includeAll? '' : (emps[0]?.id||'');
+  }
+
+  // Lee propina de facturas (campo propina o legado en notas)
+  function cf_propina(f){
+    if(!f) return 0;
+    const keys=['propina','prop','propinas'];
+    for(const k of keys){ if(f.hasOwnProperty(k)){ const n=toNum(f[k]); if(Number.isFinite(n)) return n; } }
+    if(f.notas){
+      const m=String(f.notas).match(/-?\d+(?:[.,]\d+)?/);
+      if(m){ const n=toNum(m[0]); if(Number.isFinite(n)) return n; }
+    }
+    return 0;
+  }
+
+  function cf_rangeFacts(facts, desde, hasta, emp){
+    let arr=(facts||[]).filter(f=>(!desde||f.fecha>=desde)&&(!hasta||f.fecha<=hasta));
+    if(emp) arr=arr.filter(f=>f.emp===emp);
+    return arr;
+  }
+
+  function cf_groupMetodo(ventas){
+    const map={}; let total=0;
+    ventas.forEach(v=>{ const m=(v.pago||'Otro').trim(); map[m]=(map[m]||0)+(+v.tot||0); total+=(+v.tot||0); });
+    return {map,total};
+  }
+
+  function cf_compute(desde, hasta, emp, incluirPropinas, saldoInicial){
+    const facts=load(CFK.FACTS,[])||[];
+    const ventas = cf_rangeFacts(facts,desde,hasta,emp).map(f=>({
+      num:f.num, fecha:f.fecha, emp:f.emp, pago:f.pago,
+      sub:toNum(f.sub), tax:toNum(f.tax), tot:toNum(f.tot), prop:cf_propina(f)
+    }));
+    const gastos=(load(CFK.GASTOS,[])||[]).filter(g=>(!desde||g.fecha>=desde)&&(!hasta||g.fecha<=hasta));
+    const movs=(load(CFK.MOVS,[])||[]).filter(m=>(!desde||m.fecha>=desde)&&(!hasta||m.fecha<=hasta));
+    const ingresos=ventas.reduce((a,v)=>a+v.tot,0);
+    const propinas=ventas.reduce((a,v)=>a+v.prop,0);
+    const gastosSum=gastos.reduce((a,g)=>a+toNum(g.monto),0);
+    const retiros=movs.filter(m=>m.tipo==='Retiro').reduce((a,m)=>a+toNum(m.monto),0);
+    const depositos=movs.filter(m=>m.tipo==='Depósito').reduce((a,m)=>a+toNum(m.monto),0);
+    const netoBase=ingresos+(incluirPropinas?propinas:0)-gastosSum;
+    const neto=netoBase+depositos-retiros;
+    const cajaFinal=toNum(saldoInicial)+neto;
+    const {map:metodos,total:ingresosCheck}=cf_groupMetodo(ventas);
+    return {ventas,gastos,movs,ingresos,propinas,gastosSum,retiros,depositos,netoBase,neto,cajaFinal,saldoInicial:toNum(saldoInicial),metodos,ingresosCheck};
+  }
+
+  function cf_resumenTecnicas(ventas){
+    const map={};
+    ventas.forEach(v=>{
+      const name=cf_empName(v.emp)||'(Sin técnica)';
+      if(!map[name]) map[name]={ventas:0, prop:0};
+      map[name].ventas += v.tot;
+      map[name].prop   += v.prop;
+    });
+    return map;
+  }
+
+  function cf_resumenDiario(desde,hasta,emp,incluirPropinas,metodo){
+    const facts=load(CFK.FACTS,[])||[];
+    const gastos=load(CFK.GASTOS,[])||[];
+    const d0=new Date(desde||todayISO()), d1=new Date(hasta||todayISO());
+    const out=[];
+    for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+      const iso=d.toISOString().slice(0,10);
+      let vs=facts.filter(f=>f.fecha===iso);
+      if(emp) vs=vs.filter(f=>f.emp===emp);
+      if(metodo) vs=vs.filter(f=>(f.pago||'').trim()===metodo);
+      const ventas=vs.reduce((a,f)=>a+toNum(f.tot),0);
+      const prop=incluirPropinas?vs.reduce((a,f)=>a+cf_propina(f),0):0;
+      const gs=gastos.filter(g=>g.fecha===iso).reduce((a,g)=>a+toNum(g.monto),0);
+      out.push({fecha:iso, ventas, prop, gastos:gs, neto:ventas+prop-gs});
+    }
+    return out;
+  }
+
+  // Renders
+  function cf_renderVentas(ventas){
+    const tb=byId('cf_tbVentas');
+    tb.innerHTML = ventas.map(v=>`
+      <tr class="tr">
+        <td>${v.num}</td><td>${v.fecha}</td><td>${cf_empName(v.emp)}</td><td>${v.pago||''}</td>
+        <td>${fmt(v.sub)}</td><td>${fmt(v.tax)}</td><td>${fmt(v.tot)}</td><td>${fmt(v.prop)}</td>
+      </tr>`).join('') || `<tr class="tr"><td colspan="8">Sin ventas</td></tr>`;
+  }
+  function cf_renderGastos(gastos){
+    const tb=byId('cf_tbGastos');
+    tb.innerHTML = gastos.map((g,i)=>`
+      <tr class="tr">
+        <td>${g.fecha}</td><td>${g.concepto}</td><td>${fmt(g.monto)}</td>
+        <td class="no-print"><button class="btn-ghost" onclick="cf_delGasto(${i})">Borrar</button></td>
+      </tr>`).join('') || `<tr class="tr"><td colspan="4">Sin gastos</td></tr>`;
+  }
+  function cf_renderMovs(movs){
+    const tb=byId('cf_tbMovs');
+    tb.innerHTML = movs.map((m,i)=>`
+      <tr class="tr"><td>${m.fecha}</td><td>${m.tipo}</td><td>${fmt(m.monto)}</td>
+      <td class="no-print"><button class="btn-ghost" onclick="cf_delMov(${i})">Borrar</button></td></tr>
+    `).join('') || `<tr class="tr"><td colspan="4">Sin movimientos</td></tr>`;
+  }
+  function cf_renderMetodos(metodos,total){
+    const tb=byId('cf_tbMetodos');
+    if(!total){ tb.innerHTML=`<tr class="tr"><td colspan="3">Sin ventas</td></tr>`; return; }
+    tb.innerHTML = Object.entries(metodos).map(([m,v])=>{
+      const pct=(v/total*100).toFixed(1)+'%';
+      return `<tr class="tr"><td>${m}</td><td>${fmt(v)}</td><td>${pct}</td></tr>`;
+    }).join('');
+  }
+  function cf_renderTecnicas(map){
+    const rows=Object.entries(map).sort((a,b)=>b[1].ventas-a[1].ventas)
+      .map(([tec,vals])=>`<tr class="tr"><td>${tec}</td><td>${fmt(vals.ventas)}</td><td>${fmt(vals.prop)}</td></tr>`).join('');
+    byId('cf_tbTecnicas').innerHTML = rows || `<tr class="tr"><td colspan="3">Sin datos</td></tr>`;
+  }
+  function cf_renderDiario(rows){
+    byId('cf_tbDiario').innerHTML = rows.map(r=>`
+      <tr class="tr"><td>${r.fecha}</td><td>${fmt(r.ventas)}</td><td>${fmt(r.prop)}</td><td>${fmt(r.gastos)}</td><td>${fmt(r.neto)}</td></tr>
+    `).join('') || `<tr class="tr"><td colspan="5">Sin datos</td></tr>`;
+  }
+
+  function cf_drawChart(desde,hasta,emp,incluirPropinas){
+    const cvs=byId('cf_chart'); if(!cvs) return;
+    const ctx=cvs.getContext('2d');
+    const W=cvs.width = cvs.clientWidth || 900, H=cvs.height;
+    ctx.clearRect(0,0,W,H);
+
+    const d0=new Date(desde||todayISO()), d1=new Date(hasta||todayISO());
+    const facts=load(CFK.FACTS,[])||[], gastos=load(CFK.GASTOS,[])||[];
+    const days=[];
+    for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)) days.push(d.toISOString().slice(0,10));
+
+    const serie=days.map(day=>{
+      let vs=facts.filter(f=>f.fecha===day);
+      if(emp) vs=vs.filter(f=>f.emp===emp);
+      const ingresos=vs.reduce((a,f)=>a+toNum(f.tot),0) + (incluirPropinas? vs.reduce((a,f)=>a+cf_propina(f),0):0);
+      const gs=gastos.filter(x=>x.fecha===day).reduce((a,b)=>a+toNum(b.monto),0);
+      return {day, neto:ingresos-gs};
+    });
+
+    const pad=30; const max=Math.max(1,...serie.map(s=>s.neto));
+    ctx.strokeStyle='#cdd4ff'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad,10); ctx.lineTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.stroke();
+    ctx.fillStyle='#9aa3c7'; ctx.font='12px sans-serif';
+    for(let i=0;i<=4;i++){
+      const val=max*i/4; const y=H-pad-(H-2*pad)*(val/max);
+      ctx.fillText((val).toFixed(0),4,y+4);
+      ctx.strokeStyle='rgba(205,212,255,.15)'; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-10,y); ctx.stroke();
+    }
+    const dx=(W-2*pad)/(Math.max(1,serie.length-1));
+    ctx.beginPath();
+    serie.forEach((p,idx)=>{ const x=pad+dx*idx; const y=H-pad-(H-2*pad)*((p.neto<0?0:p.neto)/max); if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.strokeStyle='#93c5fd'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // CRUD gastos / movimientos (expuestos global para onclick)
+  window.cf_delGasto = function(i){
+    const arr=load(CFK.GASTOS,[]); arr.splice(i,1); save(CFK.GASTOS,arr); cf_aplicar();
+  };
+  window.cf_delMov = function(i){
+    const arr=load(CFK.MOVS,[]); arr.splice(i,1); save(CFK.MOVS,arr); cf_aplicar();
+  };
+
+  function cf_addGasto(){
+    const concepto=byId('cf_g_concepto').value.trim();
+    const fecha=byId('cf_g_fecha').value||todayISO();
+    const monto=toNum(byId('cf_g_monto').value);
+    if(!concepto||!monto){ alert('Concepto y monto requeridos'); return; }
+    const arr=load(CFK.GASTOS,[]); arr.push({concepto,fecha,monto}); save(CFK.GASTOS,arr);
+    byId('cf_g_concepto').value=''; byId('cf_g_monto').value='';
+    cf_aplicar();
+  }
+  function cf_addMov(){
+    const tipo=byId('cf_m_tipo').value;
+    const fecha=byId('cf_m_fecha').value||todayISO();
+    const monto=toNum(byId('cf_m_monto').value);
+    if(!monto){ alert('Monto requerido'); return; }
+    const arr=load(CFK.MOVS,[]); arr.push({tipo,fecha,monto}); save(CFK.MOVS,arr);
+    byId('cf_m_monto').value='';
+    cf_aplicar();
+  }
+
+  // Export CSV
+  function cf_exportCSV(){
+    const desde=byId('cf_desde').value, hasta=byId('cf_hasta').value, emp=byId('cf_emp').value;
+    const ip=byId('cf_propinas').value==='1'; const saldo=toNum(byId('cf_saldo').value);
+    const res=cf_compute(desde,hasta,emp,ip,saldo);
+
+    let lines=[];
+    lines.push(['Periodo',desde||'',hasta||''].map(csvSafe).join(','));
+    lines.push(['Empleado', emp? cf_empName(emp): 'Todas'].map(csvSafe).join(','));
+    lines.push(['Propinas incluidas', ip?'Sí':'No'].map(csvSafe).join(','));
+    lines.push(['Saldo inicial', res.saldoInicial].map(csvSafe).join(','));
+    lines.push(['Retiros', res.retiros].map(csvSafe).join(','));
+    lines.push(['Depósitos', res.depositos].map(csvSafe).join(','));
+    lines.push([]);
+
+    lines.push(['Ventas','#','Fecha','Empleado','Método','Subtotal','IVU','Total','Propina'].map(csvSafe).join(','));
+    res.ventas.forEach(v=>{
+      lines.push(['',v.num,v.fecha,cf_empName(v.emp),v.pago,v.sub,v.tax,v.tot,v.prop].map(csvSafe).join(','));
+    });
+
+    lines.push([]);
+    lines.push(['Gastos','Fecha','Concepto','Monto'].map(csvSafe).join(','));
+    res.gastos.forEach(g=> lines.push(['',g.fecha,g.concepto,g.monto].map(csvSafe).join(',')));
+
+    lines.push([]);
+    lines.push(['Caja por método','Método','Monto','% Ingresos'].map(csvSafe).join(','));
+    Object.entries(res.metodos).forEach(([m,v])=>{
+      const pct=res.ingresos?(v/res.ingresos*100).toFixed(1)+'%':'0%';
+      lines.push(['',m,v,pct].map(csvSafe).join(','));
+    });
+
+    lines.push([]);
+    lines.push(['Resumen','Ingresos',res.ingresos,'Propinas (incl)',ip?res.propinas:0,'Gastos',res.gastosSum,'Retiros',res.retiros,'Depósitos',res.depositos,'Caja Inicial',res.saldoInicial,'Flujo Neto',res.neto,'Caja Final',res.cajaFinal].map(csvSafe).join(','));
+
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));
+    a.download=`flujo_${desde||'inicio'}_a_${hasta||'fin'}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  // PDF
+  function cf_pdf(){
+    const desde=byId('cf_desde').value, hasta=byId('cf_hasta').value, emp=byId('cf_emp').value;
+    const ip=byId('cf_propinas').value==='1'; const saldo=toNum(byId('cf_saldo').value);
+    const metodo=byId('cf_metodo').value;
+    const res=cf_compute(desde,hasta,emp,ip,saldo);
+    const diario=cf_resumenDiario(desde,hasta,emp,ip,metodo);
+    const tec=cf_resumenTecnicas(res.ventas);
+
+    const style=`<style>
+      body{font-family:system-ui,Segoe UI,Inter,Arial; padding:22px}
+      h1,h2,h3{margin:0}
+      table{width:100%; border-collapse:collapse; margin-top:8px}
+      th,td{border:1px solid #ddd; padding:6px; font-size:12px}
+      .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+      .card{border:1px solid #ddd; border-radius:10px; padding:10px}
+      .muted{color:#666}
+    </style>`;
+
+    const tbl=(h,rows)=>`<table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+    const kpis = `
+      <div class="grid">
+        <div class="card"><b>Ingresos</b><div>${fmt(res.ingresos)}</div></div>
+        <div class="card"><b>Propinas ${ip?'(incl.)':''}</b><div>${fmt(ip?res.propinas:0)}</div></div>
+        <div class="card"><b>Gastos</b><div>${fmt(res.gastosSum)}</div></div>
+        <div class="card"><b>Retiros</b><div>${fmt(res.retiros)}</div></div>
+        <div class="card"><b>Depósitos</b><div>${fmt(res.depositos)}</div></div>
+        <div class="card"><b>Caja Final</b><div>${fmt(res.cajaFinal)}</div></div>
+      </div>`;
+
+    const ventasHead=['#','Fecha','Técnica','Método','Subtotal','IVU','Total','Propina'];
+    const ventasRows=res.ventas.map(v=>[v.num,v.fecha,cf_empName(v.emp),v.pago,fmt(v.sub),fmt(v.tax),fmt(v.tot),fmt(v.prop)]);
+
+    const tecnicasHead=['Técnica','Ventas','Propinas'];
+    const tecnicasRows=Object.entries(tec).map(([t,v])=>[t,fmt(v.ventas),fmt(v.prop)]);
+
+    const diarioHead=['Fecha','Ventas','Propinas','Gastos','Neto'];
+    const diarioRows=diario.map(r=>[r.fecha,fmt(r.ventas),fmt(r.prop),fmt(r.gastos),fmt(r.neto)]);
+
+    const gastosHead=['Fecha','Concepto','Monto'];
+    const gastosRows=res.gastos.map(g=>[g.fecha,g.concepto,fmt(g.monto)]);
+
+    const metodosHead=['Método','Monto','% Ingresos'];
+    const metodosRows=Object.entries(res.metodos).map(([m,v])=>[m,fmt(v), (res.ingresos?(v/res.ingresos*100).toFixed(1):'0.0')+'%']);
+
+    const html = `
+      <html><head><meta charset="utf-8"><title>Flujo de Caja</title>${style}</head><body>
+      <h2>Flujo de Caja</h2>
+      <div class="muted">${desde||'inicio'} a ${hasta||'fin'} — ${emp?cf_empName(emp):'Todas las técnicas'}</div>
+      ${kpis}
+      ${tbl(metodosHead, metodosRows)}
+      ${tbl(tecnicasHead, tecnicasRows)}
+      ${tbl(diarioHead, diarioRows)}
+      <h3>Ventas</h3>
+      ${tbl(ventasHead, ventasRows)}
+      <h3>Gastos</h3>
+      ${tbl(gastosHead, gastosRows)}
+      </body></html>`;
+    const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+  }
+
+  function cf_setPeriodoMes(){
+    const d=new Date();
+    const ini=new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+    const fin=new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+    byId('cf_desde').value=ini; byId('cf_hasta').value=fin;
+  }
+  function cf_setHoy(){
+    const t=todayISO(); byId('cf_desde').value=t; byId('cf_hasta').value=t;
+  }
+
+  function cf_aplicar(){
+    const desde=byId('cf_desde').value, hasta=byId('cf_hasta').value, emp=byId('cf_emp').value;
+    const ip=byId('cf_propinas').value==='1'; const saldo=toNum(byId('cf_saldo').value);
+    const res=cf_compute(desde,hasta,emp,ip,saldo);
+    byId('cf_kpi_ingresos').textContent=fmt(res.ingresos);
+    byId('cf_kpi_propinas').textContent=fmt(ip?res.propinas:0);
+    byId('cf_kpi_gastos').textContent=fmt(res.gastosSum);
+    byId('cf_kpi_inicial').textContent=fmt(res.saldoInicial);
+    byId('cf_kpi_neto').textContent=fmt(res.neto);
+    byId('cf_kpi_final').textContent=fmt(res.cajaFinal);
+
+    cf_renderVentas(res.ventas);
+    cf_renderGastos(res.gastos);
+    cf_renderMovs(res.movs);
+
+    const tec = cf_resumenTecnicas(res.ventas);
+    cf_renderTecnicas(tec);
+
+    cf_renderMetodos(res.metodos, res.ingresos);
+    cf_drawChart(desde,hasta,emp,ip);
+
+    const met=byId('cf_metodo').value;
+    const diario=cf_resumenDiario(desde,hasta,emp,ip,met);
+    cf_renderDiario(diario);
+
+    // Guardar preferencias
+    save(CFK.CFG,{propinas: ip?1:0, saldo: saldo});
+  }
+
+  function cf_bind(){
+    // tabs dentro de facturación
+    const bFact=byId('cf_tab_facturar'), bFlujo=byId('cf_tab_flujo');
+    const vFact=byId('cf_view_facturar'), vFlujo=byId('cf_view_flujo');
+    if(bFact && bFlujo){
+      const setTab = (name)=>{
+        [bFact,bFlujo].forEach(b=>b.classList.remove('active'));
+        [vFact,vFlujo].forEach(v=>v.classList.remove('active'));
+        if(name==='fact'){ bFact.classList.add('active'); vFact.classList.add('active'); }
+        else { bFlujo.classList.add('active'); vFlujo.classList.add('active'); }
+      };
+      bFact.addEventListener('click', ()=>setTab('fact'));
+      bFlujo.addEventListener('click', ()=>setTab('flujo'));
+    }
+
+    byId('cf_btnHoy')?.addEventListener('click', ()=>{ cf_setHoy(); cf_aplicar(); });
+    byId('cf_btnMes')?.addEventListener('click', ()=>{ cf_setPeriodoMes(); cf_aplicar(); });
+    byId('cf_btnRango')?.addEventListener('click', ()=>{ /* manual */ cf_aplicar(); });
+
+    byId('cf_btnAplicar')?.addEventListener('click', cf_aplicar);
+    byId('cf_btnReset')?.addEventListener('click', ()=>{
+      const cfg=load(CFK.CFG,{propinas:0, saldo:0});
+      byId('cf_propinas').value = cfg.propinas?'1':'0';
+      byId('cf_saldo').value = toNum(cfg.saldo);
+      cf_setPeriodoMes();
+      cf_aplicar();
+    });
+
+    byId('cf_btnCSV')?.addEventListener('click', cf_exportCSV);
+    byId('cf_btnPDF')?.addEventListener('click', cf_pdf);
+    byId('cf_btnGAdd')?.addEventListener('click', cf_addGasto);
+    byId('cf_btnMAdd')?.addEventListener('click', cf_addMov);
+
+    // Cambios que re-aplican
+    ['cf_desde','cf_hasta','cf_emp','cf_propinas','cf_saldo','cf_metodo'].forEach(id=>{
+      byId(id)?.addEventListener('change', cf_aplicar);
+    });
+  }
+
+  function cf_init(){
+    cf_ensureStores();
+    cf_fillEmps(true);       // incluye "Todas"
+    const cfg=load(CFK.CFG,{propinas:0, saldo:0});
+    byId('cf_propinas').value = cfg.propinas ? '1':'0';
+    byId('cf_saldo').value = toNum(cfg.saldo);
+    cf_setPeriodoMes();
+    cf_aplicar();
+    cf_bind();
+  }
+
+  // Arranque cuando el DOM esté listo (después de tu boot())
+  window.addEventListener('DOMContentLoaded', cf_init);
+})();
 </script>
 </body>
 </html>
