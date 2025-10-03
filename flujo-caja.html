@@ -52,8 +52,10 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
             <button id="btnHoy" class="btn-ghost">Hoy</button>
             <button id="btnMes" class="btn-ghost">Mes</button>
             <button id="btnRango" class="btn-ghost">Rango</button>
-            <button id="btnImprimir" class="btn-ghost">Imprimir</button>
+            <button id="btnPDF" class="btn-primary">Reporte PDF bonito</button>
             <button id="btnCSV" class="btn-ghost">Exportar CSV</button>
+            <button id="btnBackup" class="btn-ghost">Backup JSON</button>
+            <input id="backupImport" type="file" accept="application/json" class="input" style="display:none">
           </div>
         </div>
         <p style="margin:.2rem 0;color:#a9b1d6">Lee ventas de <code>sp_facturas</code> y guarda gastos en <code>sp_gastos</code>. Comparte <b>mismo dominio</b> para acceder al <i>localStorage</i>.</p>
@@ -127,28 +129,64 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
       </div>
     </div>
 
-    <!-- Detalle ventas/gastos -->
-    <div class="row cols-2" style="margin-top:1rem">
+    <!-- Resumen por técnica -->
+    <div class="row" style="margin-top:1rem">
       <div class="card">
-        <b>Ventas del período</b>
+        <b>Resumen por técnica</b>
         <table class="table">
-          <thead><tr class="tr"><th>#</th><th>Fecha</th><th>Técnica</th><th>Método</th><th>Subtotal</th><th>IVU</th><th>Total</th><th>Propina</th></tr></thead>
-          <tbody id="tbVentas"></tbody>
+          <thead><tr class="tr">
+            <th>Técnica</th><th>Ventas</th><th>Propinas</th>
+          </tr></thead>
+          <tbody id="tbTecnicas"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Resumen diario -->
+    <div class="row" style="margin-top:1rem">
       <div class="card">
-        <div style="display:flex; align-items:center; gap:.6rem"><b>Gastos del período</b><span class="badge no-print">Local: sp_gastos</span></div>
-        <div class="row cols-3 no-print" style="margin-top:.6rem">
-          <div><label>Concepto</label><input id="g_concepto" class="input" placeholder="Renta, insumos, etc."></div>
-          <div><label>Fecha</label><input id="g_fecha" type="date" class="input"></div>
-          <div><label>Monto</label><input id="g_monto" type="number" step=".01" class="input" placeholder="0.00"></div>
-        </div>
-        <div class="actions no-print" style="margin-top:.6rem">
-          <button id="btnGAdd" class="btn-primary">Añadir gasto</button>
+        <div style="display:flex; align-items:center; gap:.6rem">
+          <b>Resumen diario</b>
+          <span class="badge no-print">Ideal para cortes de caja</span>
+          <div class="actions no-print" style="margin-left:auto">
+            <label style="color:#a9b1d6">Filtrar método:</label>
+            <select id="f_metodo" class="input" style="width:auto">
+              <option value="">Todos</option>
+              <option>ATH Móvil</option>
+              <option>Tarjeta</option>
+              <option>Cash</option>
+            </select>
+          </div>
         </div>
         <table class="table" style="margin-top:.6rem">
-          <thead><tr class="tr"><th>Fecha</th><th>Concepto</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
-          <tbody id="tbGastos"></tbody>
+          <thead><tr class="tr">
+            <th>Fecha</th><th>Ventas</th><th>Propinas</th><th>Gastos</th><th>Neto (ventas+propinas-gastos)</th>
+          </tr></thead>
+          <tbody id="tbDiario"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Retiros / Depósitos -->
+    <div class="row" style="margin-top:1rem">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:.6rem">
+          <b>Movimientos de caja (retiros/depósitos)</b>
+          <span class="badge no-print">Ajustan la caja final</span>
+        </div>
+        <div class="row cols-3 no-print" style="margin-top:.6rem">
+          <div><label>Tipo</label>
+            <select id="m_tipo" class="input"><option>Retiro</option><option>Depósito</option></select>
+          </div>
+          <div><label>Fecha</label><input id="m_fecha" type="date" class="input"></div>
+          <div><label>Monto</label><input id="m_monto" type="number" step=".01" class="input" placeholder="0.00"></div>
+        </div>
+        <div class="actions no-print" style="margin-top:.6rem">
+          <button id="btnMAdd" class="btn-primary">Añadir movimiento</button>
+        </div>
+        <table class="table" style="margin-top:.6rem">
+          <thead><tr class="tr"><th>Fecha</th><th>Tipo</th><th>Monto</th><th class="no-print">Acciones</th></tr></thead>
+          <tbody id="tbMovs"></tbody>
         </table>
       </div>
     </div>
@@ -161,10 +199,12 @@ const K = {
   FACTS: 'sp_facturas',
   EMP:   'sp_empleados',
   GASTOS:'sp_gastos',
-  CFGCF: 'sp_cf_cfg' // { propinas:0/1, saldo: number }
+  CFGCF: 'sp_cf_cfg', // { propinas:0/1, saldo:number }
+  MOVS:  'sp_cf_movs' // [{tipo:'Retiro'|'Depósito', fecha:'YYYY-MM-DD', monto:number}]
 };
 /* ========= Utiles ========= */
 const $=s=>document.querySelector(s);
+const byId=id=>document.getElementById(id);
 const fmt=n=>(+n||0).toLocaleString('es-PR',{style:'currency',currency:'USD'});
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const load=(k,d=null)=>JSON.parse(localStorage.getItem(k)||JSON.stringify(d));
@@ -173,15 +213,21 @@ const csvSafe=v=>{
   const s=String(v??''); const needs=/[",\n]/.test(s)||/^[=+\-@]/.test(s);
   return needs?`"${s.replace(/"/g,'""')}"`:s;
 };
+function sum(arr){ return arr.reduce((a,b)=>a+(+b||0),0); }
 /* ========= Estado ========= */
 function ensureDefaults(){
   if(!load(K.GASTOS)) save(K.GASTOS,[]);
   if(!load(K.CFGCF)) save(K.CFGCF,{propinas:0, saldo:0});
+  if(!load(K.MOVS))  save(K.MOVS,[]);
 }
 function fillEmps(){
-  const emps = load(K.EMP,[]);
-  const sel = $('#f_emp');
-  sel.innerHTML = '<option value="">Todas</option>' + (emps||[]).map(e=>`<option value="${e.id}">${e.nombre||'(Sin nombre)'}</option>`).join('');
+  const emps = load(K.EMP,[])||[];
+  const sel = byId('f_emp');
+  sel.innerHTML = '<option value="">Todas</option>' + emps.map(e=>`<option value="${e.id}">${e.nombre||'(Sin nombre)'}</option>`).join('');
+}
+function empNameById(id){
+  const emps = load(K.EMP,[])||[];
+  return (emps.find(e=>e.id===id)||{}).nombre||'';
 }
 /* ====== Base desde sp_facturas ====== */
 function getFacturaPropina(f){
@@ -202,27 +248,74 @@ function groupByMetodo(ventas){
   });
   return {map,total};
 }
+/* ====== Cálculo principal ====== */
 function compute(desde, hasta, emp, incluirPropinas, saldoInicial){
-  const facts = load(K.FACTS,[]);
+  const facts = load(K.FACTS,[])||[];
   const ventas = rangear(facts, desde, hasta, emp).map(f=>({
     num:f.num, fecha:f.fecha, emp:f.emp, pago:f.pago,
     sub:+f.sub||0, tax:+f.tax||0, tot:+f.tot||0, prop:getFacturaPropina(f)
   }));
-  const gastosAll = load(K.GASTOS,[]);
-  const gastos = (gastosAll||[]).filter(g => (!desde || g.fecha>=desde) && (!hasta || g.fecha<=hasta));
+  const gastosAll = load(K.GASTOS,[])||[];
+  const gastos = gastosAll.filter(g => (!desde || g.fecha>=desde) && (!hasta || g.fecha<=hasta));
+
+  // ingresos y propinas
   const ingresos = ventas.reduce((a,v)=>a+v.tot,0);
   const propinas = ventas.reduce((a,v)=>a+v.prop,0);
   const gastosSum = gastos.reduce((a,g)=>a+(+g.monto||0),0);
-  const neto = ingresos + (incluirPropinas?propinas:0) - gastosSum; // flujo del período
+
+  // neto del período (sin movimientos)
+  const netoBase = ingresos + (incluirPropinas?propinas:0) - gastosSum;
+
+  // movimientos (ajuste de caja)
+  const movs = (load(K.MOVS,[])||[]).filter(m => (!desde || m.fecha>=desde) && (!hasta || m.fecha<=hasta));
+  const retiros   = sum(movs.filter(m=>m.tipo==='Retiro').map(m=>m.monto));
+  const depositos = sum(movs.filter(m=>m.tipo==='Depósito').map(m=>m.monto));
+
+  const neto = netoBase + depositos - retiros;
   const cajaFinal = (+saldoInicial||0) + neto;
+
   const {map:metodos,total:ingresosCheck} = groupByMetodo(ventas);
-  return {ventas, gastos, ingresos, propinas, gastosSum, neto, cajaFinal, saldoInicial:+saldoInicial||0, metodos, ingresosCheck};
+
+  return {
+    ventas, gastos, ingresos, propinas, gastosSum,
+    netoBase, retiros, depositos, neto, cajaFinal,
+    saldoInicial:+saldoInicial||0, metodos, ingresosCheck, movs
+  };
+}
+/* ====== Resúmenes ====== */
+function buildResumenTecnicas(ventas){
+  const map={};
+  ventas.forEach(v=>{
+    const name = empNameById(v.emp) || '(Sin técnica)';
+    if(!map[name]) map[name] = {ventas:0, prop:0};
+    map[name].ventas += (+v.tot||0);
+    map[name].prop   += (+v.prop||0);
+  });
+  return map;
+}
+function buildResumenDiario(desde, hasta, emp, incluirPropinas, metodo){
+  const facts = load(K.FACTS,[])||[];
+  const gastos = load(K.GASTOS,[])||[];
+  const d0 = new Date(desde||todayISO());
+  const d1 = new Date(hasta||todayISO());
+  const out = [];
+  for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+    const iso = d.toISOString().slice(0,10);
+    let vs = facts.filter(f=>f.fecha===iso);
+    if(emp) vs = vs.filter(f=>f.emp===emp);
+    if(metodo) vs = vs.filter(f=>(f.pago||'').trim()===metodo);
+    const ventas = vs.reduce((a,f)=>a+(+f.tot||0),0);
+    const prop   = incluirPropinas ? vs.reduce((a,f)=>a+getFacturaPropina(f),0) : 0;
+    const gs     = gastos.filter(g=>g.fecha===iso).reduce((a,g)=>a+(+g.monto||0),0);
+    out.push({fecha:iso, ventas, prop, gastos:gs, neto: ventas+prop-gs});
+  }
+  return out;
 }
 /* ====== Render ====== */
 function renderTablaVentas(ventas){
-  const emps = load(K.EMP,[]);
-  const empName=id=>(emps||[]).find(e=>e.id===id)?.nombre||'';
-  $('#tbVentas').innerHTML = ventas.map(v=>`
+  const emps = load(K.EMP,[])||[];
+  const empName=id=>(emps.find(e=>e.id===id)||{}).nombre||'';
+  byId('tbVentas').innerHTML = ventas.map(v=>`
     <tr class="tr">
       <td>${v.num}</td>
       <td>${v.fecha}</td>
@@ -232,10 +325,10 @@ function renderTablaVentas(ventas){
       <td>${fmt(v.tax)}</td>
       <td>${fmt(v.tot)}</td>
       <td>${fmt(v.prop)}</td>
-    </tr>`).join('');
+    </tr>`).join('') || `<tr class="tr"><td colspan="8">Sin ventas</td></tr>`;
 }
 function renderTablaGastos(gastos){
-  $('#tbGastos').innerHTML = gastos.map((g,idx)=>`
+  byId('tbGastos').innerHTML = gastos.map((g,idx)=>`
     <tr class="tr">
       <td>${g.fecha}</td>
       <td>${g.concepto}</td>
@@ -243,35 +336,39 @@ function renderTablaGastos(gastos){
       <td class="no-print">
         <button class="btn-ghost" onclick="delGasto(${idx})">Borrar</button>
       </td>
-    </tr>`).join('');
+    </tr>`).join('') || `<tr class="tr"><td colspan="4">Sin gastos</td></tr>`;
 }
 function renderMetodos(metodos, total){
-  const rows = Object.entries(metodos).sort((a,b)=>b[1]-a[1]).map(([monto, val])=>[monto,val]);
-  const tbody = $('#tbMetodos');
+  const tbody = byId('tbMetodos');
   if(!total){ tbody.innerHTML = `<tr class="tr"><td colspan="3">Sin ventas en el período</td></tr>`; return; }
   tbody.innerHTML = Object.entries(metodos).map(([m,v])=>{
     const pct = (v/total*100).toFixed(1)+'%';
     return `<tr class="tr"><td>${m}</td><td>${fmt(v)}</td><td>${pct}</td></tr>`;
   }).join('');
 }
-function setKPIs({ingresos, propinas, gastosSum, neto, cajaFinal, saldoInicial}){
-  $('#kpi_ingresos').textContent = fmt(ingresos);
-  $('#kpi_propinas').textContent = fmt(propinas);
-  $('#kpi_gastos').textContent   = fmt(gastosSum);
-  $('#kpi_inicial').textContent  = fmt(saldoInicial);
-  $('#kpi_neto').textContent     = fmt(neto);
-  $('#kpi_final').textContent    = fmt(cajaFinal);
+function renderTecnicas(map){
+  const rows = Object.entries(map).sort((a,b)=>b[1].ventas-a[1].ventas).map(([tec,vals])=>`
+    <tr class="tr"><td>${tec}</td><td>${fmt(vals.ventas)}</td><td>${fmt(vals.prop)}</td></tr>
+  `).join('');
+  byId('tbTecnicas').innerHTML = rows || `<tr class="tr"><td colspan="3">Sin datos</td></tr>`;
+}
+function renderDiario(rows){
+  byId('tbDiario').innerHTML = rows.map(r=>`
+    <tr class="tr">
+      <td>${r.fecha}</td><td>${fmt(r.ventas)}</td><td>${fmt(r.prop)}</td>
+      <td>${fmt(r.gastos)}</td><td>${fmt(r.neto)}</td>
+    </tr>`).join('') || `<tr class="tr"><td colspan="5">Sin datos</td></tr>`;
 }
 /* ====== Gráfico Canvas ====== */
 function drawChart(desde, hasta, emp, incluirPropinas){
-  const cvs=$('#chart'), ctx=cvs.getContext('2d');
+  const cvs=byId('chart'), ctx=cvs.getContext('2d');
   const W=cvs.width = cvs.clientWidth || 900, H=cvs.height;
   ctx.clearRect(0,0,W,H);
   const d0 = new Date(desde||todayISO());
   const d1 = new Date(hasta||todayISO());
   const days=[]; for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){ days.push(d.toISOString().slice(0,10)); }
-  const facts = load(K.FACTS,[]);
-  const gastos = load(K.GASTOS,[]);
+  const facts = load(K.FACTS,[])||[];
+  const gastos = load(K.GASTOS,[])||[];
   const serie = days.map(day=>{
     const vs = rangear(facts, day, day, emp);
     const ingresos = vs.reduce((a,f)=>a+(+f.tot||0),0) + (incluirPropinas? vs.reduce((a,f)=>a+getFacturaPropina(f),0) : 0);
@@ -299,29 +396,61 @@ function drawChart(desde, hasta, emp, incluirPropinas){
 }
 /* ====== Gastos CRUD ====== */
 function addGasto(){
-  const concepto = $('#g_concepto').value.trim();
-  const fecha = $('#g_fecha').value || todayISO();
-  const monto = +$('#g_monto').value || 0;
+  const concepto = byId('g_concepto').value.trim();
+  const fecha = byId('g_fecha').value || todayISO();
+  const monto = +byId('g_monto').value || 0;
   if(!concepto || !monto){ alert('Concepto y monto requeridos'); return; }
   const arr = load(K.GASTOS,[]);
   arr.push({concepto, fecha, monto});
   save(K.GASTOS, arr);
-  $('#g_concepto').value=''; $('#g_monto').value='';
+  byId('g_concepto').value=''; byId('g_monto').value='';
   aplicar();
 }
 function delGasto(idx){
   const arr = load(K.GASTOS,[]);
   arr.splice(idx,1); save(K.GASTOS,arr); aplicar();
 }
-/* ====== CSV/Print ====== */
+/* ====== Movimientos CRUD ====== */
+function ensureMovs(){ if(!load(K.MOVS)) save(K.MOVS,[]); }
+function renderMovs(){
+  ensureMovs();
+  const arr = load(K.MOVS,[]);
+  byId('tbMovs').innerHTML = arr.map((m,i)=>`
+    <tr class="tr">
+      <td>${m.fecha}</td><td>${m.tipo}</td><td>${fmt(m.monto)}</td>
+      <td class="no-print"><button class="btn-ghost" onclick="delMov(${i})">Borrar</button></td>
+    </tr>
+  `).join('') || `<tr class="tr"><td colspan="4">Sin movimientos</td></tr>`;
+}
+function addMov(){
+  ensureMovs();
+  const tipo = byId('m_tipo').value;
+  const fecha= byId('m_fecha').value || todayISO();
+  const monto= +byId('m_monto').value||0;
+  if(!monto) return alert('Monto requerido');
+  const arr=load(K.MOVS,[]); arr.push({tipo, fecha, monto}); save(K.MOVS,arr);
+  byId('m_monto').value='';
+  renderMovs();
+  aplicar();
+}
+function delMov(i){
+  const arr=load(K.MOVS,[]); arr.splice(i,1); save(K.MOVS,arr);
+  renderMovs(); aplicar();
+}
+/* ====== CSV ====== */
 function exportCSV(){
-  const desde=$('#f_desde').value, hasta=$('#f_hasta').value, emp=$('#f_emp').value;
-  const ip=$('#f_propinas').value==='1'; const saldo=parseFloat($('#f_saldo').value||'0')||0;
+  const desde=byId('f_desde').value, hasta=byId('f_hasta').value, emp=byId('f_emp').value;
+  const ip=byId('f_propinas').value==='1'; const saldo=parseFloat(byId('f_saldo').value||'0')||0;
   const res=compute(desde,hasta,emp,ip,saldo);
+
   let lines=[];
   // Encabezado
   lines.push(['Periodo',desde||'',hasta||''].map(csvSafe).join(','));
   lines.push(['Empleado',emp||'Todas'].map(csvSafe).join(','));
+  lines.push(['Propinas incluidas', ip? 'Sí':'No'].map(csvSafe).join(','));
+  lines.push(['Saldo inicial', res.saldoInicial].map(csvSafe).join(','));
+  lines.push(['Retiros', res.retiros].map(csvSafe).join(','));
+  lines.push(['Depósitos', res.depositos].map(csvSafe).join(','));
   lines.push([]);
   // Ventas
   lines.push(['Ventas','#','Fecha','Empleado','Método','Subtotal','IVU','Total','Propina'].map(csvSafe).join(','));
@@ -339,35 +468,163 @@ function exportCSV(){
   });
   lines.push([]);
   // Resumen de caja
-  lines.push(['Resumen','Ingresos',res.ingresos,'Propinas (incl)',ip?res.propinas:0,'Gastos',res.gastosSum,'Caja Inicial',res.saldoInicial,'Flujo Neto',res.neto,'Caja Final',res.cajaFinal].map(csvSafe).join(','));
+  lines.push(['Resumen',
+    'Ingresos',res.ingresos,
+    'Propinas (incl)',ip?res.propinas:0,
+    'Gastos',res.gastosSum,
+    'Retiros',res.retiros,
+    'Depósitos',res.depositos,
+    'Caja Inicial',res.saldoInicial,
+    'Flujo Neto',res.neto,
+    'Caja Final',res.cajaFinal
+  ].map(csvSafe).join(','));
+
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));
   a.download=`flujo_${desde||'inicio'}_a_${hasta||'fin'}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
-function printDoc(){ window.print(); }
-/* ====== Helpers UI ====== */
+/* ====== PDF bonito ====== */
+function pdfReport(){
+  const desde=byId('f_desde').value, hasta=byId('f_hasta').value, emp=byId('f_emp').value;
+  const ip=byId('f_propinas').value==='1'; const saldo=parseFloat(byId('f_saldo').value||'0')||0;
+  const metodo=byId('f_metodo').value;
+  const res=compute(desde,hasta,emp,ip,saldo);
+  const diario=buildResumenDiario(desde,hasta,emp,ip,metodo);
+  const tecnicas=buildResumenTecnicas(res.ventas);
+
+  const style=`
+    <style>
+      body{font-family:system-ui,Segoe UI,Inter,Arial; padding:22px}
+      h1,h2,h3{margin:0}
+      .muted{color:#666}
+      table{width:100%; border-collapse:collapse; margin-top:8px}
+      th,td{border:1px solid #ddd; padding:6px; font-size:12px}
+      .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+      .card{border:1px solid #ddd; border-radius:10px; padding:10px}
+    </style>`;
+
+  const tbl = (head, rows) => `
+    <table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+  const headVentas = ['#','Fecha','Técnica','Método','Subtotal','IVU','Total','Propina'];
+  const rowsVentas = res.ventas.map(v=>[
+    v.num, v.fecha, empNameById(v.emp), v.pago, fmt(v.sub), fmt(v.tax), fmt(v.tot), fmt(v.prop)
+  ]);
+
+  const headGastos = ['Fecha','Concepto','Monto'];
+  const rowsGastos = res.gastos.map(g=>[g.fecha, g.concepto, fmt(g.monto)]);
+
+  const headMet = ['Método','Monto','% Ingresos'];
+  const rowsMet = Object.entries(res.metodos).map(([m,v])=>[m, fmt(v), res.ingresos?((v/res.ingresos*100).toFixed(1)+'%'):'0%']);
+
+  const headTec = ['Técnica','Ventas','Propinas'];
+  const rowsTec = Object.entries(tecnicas).map(([t,val])=>[t, fmt(val.ventas), fmt(val.prop)]);
+
+  const headDia = ['Fecha','Ventas','Propinas','Gastos','Neto'];
+  const rowsDia = diario.map(d=>[d.fecha, fmt(d.ventas), fmt(d.prop), fmt(d.gastos), fmt(d.neto)]);
+
+  const html = `
+    <html><head><meta charset="utf-8"><title>Flujo de Caja</title>${style}</head><body>
+      <h2>Flujo de Caja — Salon Pro</h2>
+      <div class="muted">Período: ${desde||'—'} a ${hasta||'—'} ${emp? ' — Técnica: '+empNameById(emp):''} ${metodo? ' — Método: '+metodo:''}</div>
+
+      <div class="grid" style="margin-top:10px">
+        <div class="card"><b>Ingresos</b><div>${fmt(res.ingresos)}</div></div>
+        <div class="card"><b>Propinas (incluidas)</b><div>${fmt(ip?res.propinas:0)}</div></div>
+        <div class="card"><b>Gastos</b><div>${fmt(res.gastosSum)}</div></div>
+        <div class="card"><b>Retiros</b><div>${fmt(res.retiros)}</div></div>
+        <div class="card"><b>Depósitos</b><div>${fmt(res.depositos)}</div></div>
+        <div class="card"><b>Caja Inicial</b><div>${fmt(res.saldoInicial)}</div></div>
+        <div class="card"><b>Flujo Neto</b><div>${fmt(res.neto)}</div></div>
+        <div class="card"><b>Caja Final</b><div>${fmt(res.cajaFinal)}</div></div>
+      </div>
+
+      <h3 style="margin-top:14px">Caja por método</h3>
+      ${tbl(headMet, rowsMet)}
+
+      <h3 style="margin-top:14px">Resumen por técnica</h3>
+      ${tbl(headTec, rowsTec)}
+
+      <h3 style="margin-top:14px">Resumen diario</h3>
+      ${tbl(headDia, rowsDia)}
+
+      <h3 style="margin-top:14px">Ventas</h3>
+      ${tbl(headVentas, rowsVentas)}
+
+      <h3 style="margin-top:14px">Gastos</h3>
+      ${tbl(headGastos, rowsGastos)}
+
+      <script>window.addEventListener('load',()=>{setTimeout(()=>{window.print();},150)});<\/script>
+    </body></html>`;
+
+  const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus();
+}
+/* ====== Backup JSON (exportar / importar) ====== */
+function exportBackup(){
+  const blob = new Blob([JSON.stringify({
+    gastos:load(K.GASTOS,[]),
+    movs:load(K.MOVS,[]),
+    prefs:load(K.CFGCF,{})
+  }, null, 2)], {type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`backup_flujo_${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importBackup(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const j=JSON.parse(r.result);
+      if(j.gastos) save(K.GASTOS, j.gastos);
+      if(j.movs)   save(K.MOVS, j.movs);
+      if(j.prefs)  save(K.CFGCF, j.prefs);
+      alert('Backup importado.');
+      renderMovs(); aplicar();
+    }catch(e){ alert('Archivo inválido.'); }
+  };
+  r.readAsText(file);
+}
+/* ====== Helpers de período ====== */
 function setPeriodoHoy(){
-  const t=todayISO(); $('#f_desde').value=t; $('#f_hasta').value=t;
+  const t=todayISO(); byId('f_desde').value=t; byId('f_hasta').value=t;
 }
 function setPeriodoMes(){
   const d=new Date(); const desde=new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
   const hasta=new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
-  $('#f_desde').value=desde; $('#f_hasta').value=hasta;
+  byId('f_desde').value=desde; byId('f_hasta').value=hasta;
 }
 function setPeriodoRango(){}
 /* ====== Acciones principales ====== */
 function aplicar(){
-  const desde=$('#f_desde').value, hasta=$('#f_hasta').value, emp=$('#f_emp').value;
-  const incluirPropinas = $('#f_propinas').value==='1';
-  const saldo = parseFloat($('#f_saldo').value||'0')||0;
+  const desde=byId('f_desde').value, hasta=byId('f_hasta').value, emp=byId('f_emp').value;
+  const incluirPropinas = byId('f_propinas').value==='1';
+  const saldo = parseFloat(byId('f_saldo').value||'0')||0;
+  const metodo = byId('f_metodo').value;
+
   // persistir preferencia
   const prev=load(K.CFGCF,{});
   save(K.CFGCF,{...prev, propinas: incluirPropinas?1:0, saldo});
+
   const res=compute(desde,hasta,emp,incluirPropinas,saldo);
-  setKPIs(res);
+  // KPIs
+  byId('kpi_ingresos').textContent = fmt(res.ingresos);
+  byId('kpi_propinas').textContent = fmt(incluirPropinas?res.propinas:0);
+  byId('kpi_gastos').textContent   = fmt(res.gastosSum);
+  byId('kpi_inicial').textContent  = fmt(res.saldoInicial);
+  byId('kpi_neto').textContent     = fmt(res.neto);
+  byId('kpi_final').textContent    = fmt(res.cajaFinal);
+
+  // Tablas
   renderTablaVentas(res.ventas);
   renderTablaGastos(res.gastos);
   renderMetodos(res.metodos, res.ingresos);
+  renderTecnicas(buildResumenTecnicas(res.ventas));
+  renderDiario(buildResumenDiario(desde,hasta,emp,incluirPropinas,metodo));
+
+  // Movs y gráfico
+  renderMovs();
   drawChart(desde||todayISO(), hasta||todayISO(), emp, incluirPropinas);
 }
 /* ====== Boot ====== */
@@ -375,23 +632,38 @@ function boot(){
   ensureDefaults();
   fillEmps();
   const cfg=load(K.CFGCF,{propinas:0, saldo:0});
-  $('#f_propinas').value = (cfg?.propinas? '1':'0');
-  $('#f_saldo').value = Number.isFinite(+cfg?.saldo) ? (+cfg.saldo) : 0;
+  byId('f_propinas').value = (cfg?.propinas? '1':'0');
+  byId('f_saldo').value = Number.isFinite(+cfg?.saldo) ? (+cfg.saldo) : 0;
   setPeriodoMes();
   aplicar();
 
   // eventos
-  $('#btnHoy').onclick=()=>{setPeriodoHoy(); aplicar();};
-  $('#btnMes').onclick=()=>{setPeriodoMes(); aplicar();};
-  $('#btnRango').onclick=()=>{setPeriodoRango();};
-  $('#btnImprimir').onclick=printDoc;
-  $('#btnCSV').onclick=exportCSV;
-  $('#btnAplicar').onclick=aplicar;
-  $('#btnReset').onclick=()=>{ setPeriodoMes(); $('#f_emp').value=''; $('#f_propinas').value='0'; $('#f_saldo').value = 0; aplicar(); };
-  $('#btnGAdd').onclick=addGasto;
+  byId('btnHoy').onclick=()=>{setPeriodoHoy(); aplicar();};
+  byId('btnMes').onclick=()=>{setPeriodoMes(); aplicar();};
+  byId('btnRango').onclick=()=>{setPeriodoRango();};
+  byId('btnPDF').onclick=pdfReport;
+  byId('btnCSV').onclick=exportCSV;
+  byId('btnAplicar').onclick=aplicar;
+  byId('btnReset').onclick=()=>{ setPeriodoMes(); byId('f_emp').value=''; byId('f_propinas').value='0'; byId('f_saldo').value = 0; byId('f_metodo').value=''; aplicar(); };
+  byId('btnGAdd').onclick=addGasto;
+  byId('btnMAdd').onclick=addMov;
+  byId('f_metodo').onchange=aplicar;
+
+  byId('btnBackup').onclick=()=>{
+    if(confirm('OK = Exportar backup JSON\nCancelar = Importar desde archivo JSON')){
+      exportBackup();
+    }else{
+      byId('backupImport').click();
+    }
+  };
+  byId('backupImport').addEventListener('change', e=>{
+    const f=e.target.files?.[0]; if(f) importBackup(f);
+    e.target.value='';
+  });
 }
 window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
+
 
