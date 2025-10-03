@@ -55,10 +55,10 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
       <div style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap">
         <h1 style="margin:0">Salon Pro — Flujo de Caja</h1>
         <span class="badge">Archivo externo (mismo dominio)</span>
-      </div>
-      <div class="tabs no-print" style="margin-top:.6rem">
-        <button id="tabBtnResumen" class="tab active">Resumen</button>
-        <button id="tabBtnCash" class="tab">Cobro Cash</button>
+        <div class="actions" style="margin-left:auto">
+          <button id="tabBtnResumen" class="tab active">Resumen</button>
+          <button id="tabBtnCash" class="tab">Cobro Cash</button>
+        </div>
       </div>
     </div>
 
@@ -368,12 +368,16 @@ byId('tabBtnCash').onclick=()=>showTab('tab-cash');
 /* =========================
    ESTADO / DEFAULTS
    ========================= */
+function safeId(){
+  return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() :
+         (Date.now().toString(36)+Math.random().toString(36).slice(2));
+}
 function ensureDefaults(){
   if(!load(K.GASTOS)) save(K.GASTOS,[]);
   if(!load(K.CFGCF)) save(K.CFGCF,{propinas:0, saldo:0});
   if(!load(K.MOVS))  save(K.MOVS,[]);
   if(load(K.COUNTER)==null) save(K.COUNTER,1001);
-  if(!load(K.EMP)) save(K.EMP,[{id:crypto.randomUUID?.():Date.now().toString(36), nombre:'Caja', activo:1}]);
+  if(!load(K.EMP))   save(K.EMP,[{id:safeId(), nombre:'Caja', activo:1}]);
 }
 function empNameById(id){
   const emps = load(K.EMP,[])||[];
@@ -648,7 +652,7 @@ function cc_lineaTpl(id,data={}){
   </div>`;
 }
 function cc_lineaAdd(data={}){
-  const id=crypto.randomUUID?.():Date.now().toString(36);
+  const id = safeId();
   byId('cc_lineas').insertAdjacentHTML('beforeend', cc_lineaTpl(id,data));
   ['cant','precio','desc'].forEach(k=>{
     byId('cc_lineas').querySelector(`[data-id="${id}"][data-k="${k}"]`).addEventListener('input', cc_recalc);
@@ -736,7 +740,7 @@ function cc_guardar(){
   if(items.length===0) return alert('Añade al menos una línea.');
   const num = byId('cc_num').value || nextFacturaNumber();
   const f={
-    id: crypto.randomUUID?.(): (Date.now().toString(36)+Math.random().toString(36).slice(2)),
+    id: safeId(),
     num,
     cli: byId('cc_cli').value.trim() || 'Cliente de mostrador',
     tel: byId('cc_tel').value.trim(),
@@ -753,8 +757,8 @@ function cc_guardar(){
   f.tot = f.sub+f.tax; // (propina aparte)
 
   let facts=load(K.FACTS,[]);
-  const exists=facts.find(x=>x.num==num);
-  facts = exists ? facts.map(x=>x.num==num?{...f}:x) : [...facts, f];
+  const exists=facts.find(x=>String(x.num)===String(num));
+  facts = exists ? facts.map(x=>String(x.num)===String(num)?{...f}:x) : [...facts, f];
   save(K.FACTS,facts);
 
   byId('cc_num').value = num; // mostrar folio usado
@@ -764,7 +768,7 @@ function cc_guardar(){
 function cc_imprimir(){
   const num=byId('cc_num').value;
   if(!num) return alert('Primero guarda el ticket.');
-  const f=(load(K.FACTS,[]).find(x=>x.num==num));
+  const f=(load(K.FACTS,[]).find(x=>String(x.num)===String(num)));
   if(!f) return alert('No se encontró la factura.');
   const emp=empNameById(f.emp)||'';
   const html=`
@@ -797,27 +801,55 @@ function boot(){
   byId('f_propinas').value=(cfg?.propinas?'1':'0');
   byId('f_saldo').value=Number.isFinite(+cfg?.saldo)?(+cfg.saldo):0;
   setPeriodoMes(); aplicar();
+
   // Eventos Resumen
   byId('btnHoy').onclick=()=>{setPeriodoHoy(); aplicar();};
   byId('btnMes').onclick=()=>{setPeriodoMes(); aplicar();};
-  byId('btnPDF').onclick=pdfReport; byId('btnCSV').onclick=exportCSV; byId('btnCierre').onclick=cerrarCaja;
+  byId('btnRango').onclick=()=>{ alert('Selecciona manualmente el rango en los campos "Desde" y "Hasta" y haz clic en Aplicar.'); };
+  byId('btnPDF').onclick=pdfReport;
+  byId('btnCSV').onclick=exportCSV;
+  byId('btnCierre').onclick=cerrarCaja;
   byId('btnAplicar').onclick=aplicar;
   byId('btnReset').onclick=()=>{ setPeriodoMes(); byId('f_emp').value=''; byId('f_propinas').value='0'; byId('f_saldo').value=0; byId('f_metodo').value=''; aplicar(); };
   byId('btnGAdd').onclick=addGasto; byId('btnMAdd').onclick=addMov; byId('f_metodo').onchange=aplicar;
+  byId('backupImport').addEventListener('change', e=>{
+    const f=e.target.files?.[0];
+    if(f){
+      const r=new FileReader();
+      r.onload=()=>{
+        try{
+          const j=JSON.parse(r.result);
+          if(j.gastos) save(K.GASTOS,j.gastos);
+          if(j.movs) save(K.MOVS,j.movs);
+          if(j.prefs) save(K.CFGCF,j.prefs);
+          alert('Backup importado.');
+          renderMovs(); aplicar();
+        }catch(_){ alert('Archivo inválido.'); }
+      };
+      r.readAsText(f);
+    }
+    e.target.value='';
+  });
   byId('btnBackup').onclick=()=>{
     if(confirm('OK = Exportar backup JSON\nCancelar = Importar desde archivo JSON')){
       const blob=new Blob([JSON.stringify({gastos:load(K.GASTOS,[]), movs:load(K.MOVS,[]), prefs:load(K.CFGCF,{})},null,2)],{type:'application/json'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup_flujo_${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
     }else{ byId('backupImport').click(); }
   };
-  byId('backupImport').addEventListener('change', e=>{ const f=e.target.files?.[0]; if(f){ const r=new FileReader(); r.onload=()=>{ try{ const j=JSON.parse(r.result); if(j.gastos) save(K.GASTOS,j.gastos); if(j.movs) save(K.MOVS,j.movs); if(j.prefs) save(K.CFGCF,j.prefs); alert('Backup importado.'); renderMovs(); aplicar(); }catch(_){ alert('Archivo inválido.'); } }; r.readAsText(f);} e.target.value=''; });
 
   // Cash
-  fillEmpsSelect('cc_emp'); byId('cc_fecha').value=todayISO();
-  byId('cc_btnAddLinea').onclick=cc_lineaAdd; byId('cc_btnUsarServicios').onclick=cc_usarServicios;
-  ['cc_ivu','cc_propina','cc_recibido','cc_emp','cc_cli','cc_tel','cc_notas'].forEach(id=> byId(id).addEventListener('input', cc_recalc));
-  byId('cc_btnNuevo').onclick=cc_nuevo; byId('cc_btnGuardar').onclick=cc_guardar; byId('cc_btnImprimir').onclick=cc_imprimir;
+  fillEmpsSelect('cc_emp');
+  byId('cc_fecha').value=todayISO();
+  byId('cc_btnAddLinea').onclick=cc_lineaAdd;
+  byId('cc_btnUsarServicios').onclick=cc_usarServicios;
+  ['cc_ivu','cc_propina','cc_recibido','cc_emp','cc_cli','cc_tel','cc_notas'].forEach(id=>{
+    const el=byId(id); if(el) el.addEventListener('input', cc_recalc);
+  });
+  byId('cc_btnNuevo').onclick=cc_nuevo;
+  byId('cc_btnGuardar').onclick=cc_guardar;
+  byId('cc_btnImprimir').onclick=cc_imprimir;
   cc_nuevo();
+  renderMovs();
 }
 window.addEventListener('DOMContentLoaded', boot);
 </script>
