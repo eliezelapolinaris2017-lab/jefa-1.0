@@ -31,10 +31,10 @@ button{cursor:pointer; border:0; background:#24263a; color:#fff; border-radius:1
 .tr{background:linear-gradient(180deg,#141726,#0f1220); border:1px solid var(--outline); border-radius:12px}
 .tr td:first-child,.tr th:first-child{border-top-left-radius:12px; border-bottom-left-radius:12px}
 .tr td:last-child,.tr th:last-child{border-top-right-radius:12px; border-bottom-right-radius:12px}
-.kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem}
+.kpis{display:grid; grid-template-columns:repeat(6,1fr); gap:1rem}
 .kpi{padding:1rem; border-radius:16px; background:#10121a; border:1px solid var(--outline)}
 .kpi .label{color:#b5bad6; font-size:.85rem}
-.kpi .value{font-size:1.4rem; font-weight:800}
+.kpi .value{font-size:1.25rem; font-weight:800}
 .badge{display:inline-block; padding:.25rem .6rem; border:1px solid var(--outline); border-radius:999px; font-size:.78rem; color:#c7d2fe}
 hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,transparent); margin:1rem 0}
 .actions{display:flex; gap:.5rem; flex-wrap:wrap}
@@ -56,7 +56,7 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
             <button id="btnCSV" class="btn-ghost">Exportar CSV</button>
           </div>
         </div>
-        <p style="margin:.2rem 0;color:#a9b1d6">Lee ventas de <code>sp_facturas</code> y guarda gastos en <code>sp_gastos</code>. Cárgalo desde el mismo dominio que tu app.</p>
+        <p style="margin:.2rem 0;color:#a9b1d6">Lee ventas de <code>sp_facturas</code> y guarda gastos en <code>sp_gastos</code>. Comparte <b>mismo dominio</b> para acceder al <i>localStorage</i>.</p>
       </div>
     </div>
 
@@ -71,16 +71,22 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
             <select id="f_emp" class="input"></select>
           </div>
           <div>
-            <label>Incluir propinas en flujo</label>
+            <label>Incluir propinas en caja</label>
             <select id="f_propinas" class="input">
               <option value="0">No (solo ventas)</option>
               <option value="1">Sí (sumar propinas)</option>
             </select>
           </div>
         </div>
-        <div class="actions" style="margin-top:.7rem">
-          <button id="btnAplicar" class="btn-primary">Aplicar</button>
-          <button id="btnReset" class="btn-ghost">Reset</button>
+        <div class="row cols-4" style="margin-top:.6rem">
+          <div>
+            <label>Saldo inicial de caja</label>
+            <input id="f_saldo" type="number" step=".01" class="input" placeholder="0.00">
+          </div>
+          <div class="actions" style="align-items:end">
+            <button id="btnAplicar" class="btn-primary">Aplicar</button>
+            <button id="btnReset" class="btn-ghost">Reset</button>
+          </div>
         </div>
       </div>
     </div>
@@ -91,7 +97,9 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
         <div class="kpi"><div class="label">Ingresos</div><div class="value" id="kpi_ingresos">$0</div></div>
         <div class="kpi"><div class="label">Propinas (opc.)</div><div class="value" id="kpi_propinas">$0</div></div>
         <div class="kpi"><div class="label">Gastos</div><div class="value" id="kpi_gastos">$0</div></div>
+        <div class="kpi"><div class="label">Caja Inicial</div><div class="value" id="kpi_inicial">$0</div></div>
         <div class="kpi"><div class="label">Flujo Neto</div><div class="value" id="kpi_neto">$0</div></div>
+        <div class="kpi"><div class="label">Caja Final</div><div class="value" id="kpi_final">$0</div></div>
       </div>
     </div>
 
@@ -103,6 +111,19 @@ hr{border:0; height:1px; background:linear-gradient(90deg,transparent,#2a3458,tr
           <span style="margin-left:auto; color:#a9b2dc; font-size:.9rem">Canvas sin librerías</span>
         </div>
         <canvas id="chart" height="190" style="width:100%"></canvas>
+      </div>
+    </div>
+
+    <!-- Caja por método -->
+    <div class="row" style="margin-top:1rem">
+      <div class="card">
+        <b>Caja por método de pago</b>
+        <table class="table">
+          <thead>
+            <tr class="tr"><th>Método</th><th>Monto</th><th>% Ingresos</th></tr>
+          </thead>
+          <tbody id="tbMetodos"></tbody>
+        </table>
       </div>
     </div>
 
@@ -140,7 +161,7 @@ const K = {
   FACTS: 'sp_facturas',
   EMP:   'sp_empleados',
   GASTOS:'sp_gastos',
-  CFGCF: 'sp_cf_cfg'
+  CFGCF: 'sp_cf_cfg' // { propinas:0/1, saldo: number }
 };
 /* ========= Utiles ========= */
 const $=s=>document.querySelector(s);
@@ -155,16 +176,15 @@ const csvSafe=v=>{
 /* ========= Estado ========= */
 function ensureDefaults(){
   if(!load(K.GASTOS)) save(K.GASTOS,[]);
-  if(!load(K.CFGCF)) save(K.CFGCF,{propinas:0});
+  if(!load(K.CFGCF)) save(K.CFGCF,{propinas:0, saldo:0});
 }
 function fillEmps(){
   const emps = load(K.EMP,[]);
   const sel = $('#f_emp');
   sel.innerHTML = '<option value="">Todas</option>' + (emps||[]).map(e=>`<option value="${e.id}">${e.nombre||'(Sin nombre)'}</option>`).join('');
 }
-/* ====== Cálculo base a partir de sp_facturas ====== */
+/* ====== Base desde sp_facturas ====== */
 function getFacturaPropina(f){
-  // Compat: f.propina nuevo / f.notas como legado numérico
   const p = Number.isFinite(f?.propina) ? +f.propina : +(f?.notas||0);
   return Number.isFinite(p) ? p : 0;
 }
@@ -173,7 +193,16 @@ function rangear(facts, desde, hasta, emp){
   if(emp) arr = arr.filter(f=>f.emp===emp);
   return arr;
 }
-function compute(desde, hasta, emp, incluirPropinas){
+function groupByMetodo(ventas){
+  const map={}; let total=0;
+  ventas.forEach(v=>{
+    const m=(v.pago||'Otro').trim();
+    map[m] = (map[m]||0) + (+v.tot||0);
+    total += (+v.tot||0);
+  });
+  return {map,total};
+}
+function compute(desde, hasta, emp, incluirPropinas, saldoInicial){
   const facts = load(K.FACTS,[]);
   const ventas = rangear(facts, desde, hasta, emp).map(f=>({
     num:f.num, fecha:f.fecha, emp:f.emp, pago:f.pago,
@@ -184,8 +213,10 @@ function compute(desde, hasta, emp, incluirPropinas){
   const ingresos = ventas.reduce((a,v)=>a+v.tot,0);
   const propinas = ventas.reduce((a,v)=>a+v.prop,0);
   const gastosSum = gastos.reduce((a,g)=>a+(+g.monto||0),0);
-  const neto = ingresos + (incluirPropinas?propinas:0) - gastosSum;
-  return {ventas, gastos, ingresos, propinas, gastosSum, neto};
+  const neto = ingresos + (incluirPropinas?propinas:0) - gastosSum; // flujo del período
+  const cajaFinal = (+saldoInicial||0) + neto;
+  const {map:metodos,total:ingresosCheck} = groupByMetodo(ventas);
+  return {ventas, gastos, ingresos, propinas, gastosSum, neto, cajaFinal, saldoInicial:+saldoInicial||0, metodos, ingresosCheck};
 }
 /* ====== Render ====== */
 function renderTablaVentas(ventas){
@@ -214,23 +245,31 @@ function renderTablaGastos(gastos){
       </td>
     </tr>`).join('');
 }
-function setKPIs({ingresos, propinas, gastosSum, neto}){
+function renderMetodos(metodos, total){
+  const rows = Object.entries(metodos).sort((a,b)=>b[1]-a[1]).map(([monto, val])=>[monto,val]);
+  const tbody = $('#tbMetodos');
+  if(!total){ tbody.innerHTML = `<tr class="tr"><td colspan="3">Sin ventas en el período</td></tr>`; return; }
+  tbody.innerHTML = Object.entries(metodos).map(([m,v])=>{
+    const pct = (v/total*100).toFixed(1)+'%';
+    return `<tr class="tr"><td>${m}</td><td>${fmt(v)}</td><td>${pct}</td></tr>`;
+  }).join('');
+}
+function setKPIs({ingresos, propinas, gastosSum, neto, cajaFinal, saldoInicial}){
   $('#kpi_ingresos').textContent = fmt(ingresos);
   $('#kpi_propinas').textContent = fmt(propinas);
   $('#kpi_gastos').textContent   = fmt(gastosSum);
+  $('#kpi_inicial').textContent  = fmt(saldoInicial);
   $('#kpi_neto').textContent     = fmt(neto);
+  $('#kpi_final').textContent    = fmt(cajaFinal);
 }
 /* ====== Gráfico Canvas ====== */
 function drawChart(desde, hasta, emp, incluirPropinas){
   const cvs=$('#chart'), ctx=cvs.getContext('2d');
   const W=cvs.width = cvs.clientWidth || 900, H=cvs.height;
   ctx.clearRect(0,0,W,H);
-  // construir días del rango
   const d0 = new Date(desde||todayISO());
   const d1 = new Date(hasta||todayISO());
-  const days=[]; for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
-    days.push(d.toISOString().slice(0,10));
-  }
+  const days=[]; for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){ days.push(d.toISOString().slice(0,10)); }
   const facts = load(K.FACTS,[]);
   const gastos = load(K.GASTOS,[]);
   const serie = days.map(day=>{
@@ -276,17 +315,31 @@ function delGasto(idx){
 }
 /* ====== CSV/Print ====== */
 function exportCSV(){
-  const desde=$('#f_desde').value, hasta=$('#f_hasta').value, emp=$('#f_emp').value, ip=$('#f_propinas').value==='1';
-  const {ventas,gastos,ingresos,propinas,gastosSum,neto}=compute(desde,hasta,emp,ip);
+  const desde=$('#f_desde').value, hasta=$('#f_hasta').value, emp=$('#f_emp').value;
+  const ip=$('#f_propinas').value==='1'; const saldo=parseFloat($('#f_saldo').value||'0')||0;
+  const res=compute(desde,hasta,emp,ip,saldo);
   let lines=[];
-  lines.push(['Sección','A','B','C','D','E','F','G','H'].map(csvSafe).join(','));
+  // Encabezado
+  lines.push(['Periodo',desde||'',hasta||''].map(csvSafe).join(','));
+  lines.push(['Empleado',emp||'Todas'].map(csvSafe).join(','));
+  lines.push([]);
+  // Ventas
   lines.push(['Ventas','#','Fecha','Empleado','Método','Subtotal','IVU','Total','Propina'].map(csvSafe).join(','));
-  ventas.forEach(v=> lines.push(['',v.num,v.fecha,v.emp,v.pago,v.sub,v.tax,v.tot,v.prop].map(csvSafe).join(',')));
+  res.ventas.forEach(v=> lines.push(['',v.num,v.fecha,v.emp,v.pago,v.sub,v.tax,v.tot,v.prop].map(csvSafe).join(',')));
   lines.push([]);
+  // Gastos
   lines.push(['Gastos','Fecha','Concepto','Monto'].map(csvSafe).join(','));
-  gastos.forEach(g=> lines.push(['',g.fecha,g.concepto,g.monto].map(csvSafe).join(',')));
+  res.gastos.forEach(g=> lines.push(['',g.fecha,g.concepto,g.monto].map(csvSafe).join(',')));
   lines.push([]);
-  lines.push(['Resumen','Ingresos',ingresos,'Propinas',propinas,'Gastos',gastosSum,'Neto',neto].map(csvSafe).join(','));
+  // Métodos
+  lines.push(['Caja por método','Método','Monto','% Ingresos'].map(csvSafe).join(','));
+  Object.entries(res.metodos).forEach(([m,v])=>{
+    const pct = res.ingresos ? (v/res.ingresos*100).toFixed(1)+'%' : '0%';
+    lines.push(['',m,v,pct].map(csvSafe).join(','));
+  });
+  lines.push([]);
+  // Resumen de caja
+  lines.push(['Resumen','Ingresos',res.ingresos,'Propinas (incl)',ip?res.propinas:0,'Gastos',res.gastosSum,'Caja Inicial',res.saldoInicial,'Flujo Neto',res.neto,'Caja Final',res.cajaFinal].map(csvSafe).join(','));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));
   a.download=`flujo_${desde||'inicio'}_a_${hasta||'fin'}.csv`; a.click(); URL.revokeObjectURL(a.href);
@@ -301,40 +354,44 @@ function setPeriodoMes(){
   const hasta=new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
   $('#f_desde').value=desde; $('#f_hasta').value=hasta;
 }
-function setPeriodoRango(){
-  // deja los campos tal cual; es solo un botón “modo rango”
-}
+function setPeriodoRango(){}
+/* ====== Acciones principales ====== */
 function aplicar(){
   const desde=$('#f_desde').value, hasta=$('#f_hasta').value, emp=$('#f_emp').value;
   const incluirPropinas = $('#f_propinas').value==='1';
-  save(K.CFGCF,{propinas: incluirPropinas?1:0});
-  const res=compute(desde,hasta,emp,incluirPropinas);
+  const saldo = parseFloat($('#f_saldo').value||'0')||0;
+  // persistir preferencia
+  const prev=load(K.CFGCF,{});
+  save(K.CFGCF,{...prev, propinas: incluirPropinas?1:0, saldo});
+  const res=compute(desde,hasta,emp,incluirPropinas,saldo);
   setKPIs(res);
   renderTablaVentas(res.ventas);
   renderTablaGastos(res.gastos);
+  renderMetodos(res.metodos, res.ingresos);
   drawChart(desde||todayISO(), hasta||todayISO(), emp, incluirPropinas);
 }
 /* ====== Boot ====== */
 function boot(){
   ensureDefaults();
   fillEmps();
-  const cfg=load(K.CFGCF,{propinas:0});
+  const cfg=load(K.CFGCF,{propinas:0, saldo:0});
   $('#f_propinas').value = (cfg?.propinas? '1':'0');
-  // valores iniciales: mes actual
+  $('#f_saldo').value = Number.isFinite(+cfg?.saldo) ? (+cfg.saldo) : 0;
   setPeriodoMes();
   aplicar();
 
   // eventos
-  $('#btnHoy').onclick=setPeriodoHoy;
+  $('#btnHoy').onclick=()=>{setPeriodoHoy(); aplicar();};
   $('#btnMes').onclick=()=>{setPeriodoMes(); aplicar();};
-  $('#btnRango').onclick=setPeriodoRango;
+  $('#btnRango').onclick=()=>{setPeriodoRango();};
   $('#btnImprimir').onclick=printDoc;
   $('#btnCSV').onclick=exportCSV;
   $('#btnAplicar').onclick=aplicar;
-  $('#btnReset').onclick=()=>{ setPeriodoMes(); $('#f_emp').value=''; $('#f_propinas').value='0'; aplicar(); };
+  $('#btnReset').onclick=()=>{ setPeriodoMes(); $('#f_emp').value=''; $('#f_propinas').value='0'; $('#f_saldo').value = 0; aplicar(); };
   $('#btnGAdd').onclick=addGasto;
 }
 window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
+
